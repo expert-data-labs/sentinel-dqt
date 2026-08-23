@@ -1,0 +1,48 @@
+[project]
+name = "sentinel"
+version = "0.1.0"
+description = "A configurable data reliability and threshold intelligence platform."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    # Milestone 0 only needs the config-boundary layer; concrete adapters
+    # (duckdb) and the CLI (typer) are added when the tasks that need them
+    # land, not speculatively.
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "types-PyYAML>=6.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sentinel"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+src = ["src", "tests"]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "src"
+packages = ["sentinel", "tests"]
+strict = true
+plugins = ["pydantic.mypy"]

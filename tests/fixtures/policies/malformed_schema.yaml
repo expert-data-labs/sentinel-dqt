@@ -1,0 +1,5 @@
+# Valid YAML, invalid Policy: the row_count rule declares no threshold at all.
+dataset: orders
+rules:
+  - name: row_count
+    type: volume

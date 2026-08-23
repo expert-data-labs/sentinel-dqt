@@ -1,0 +1,7 @@
+dataset: orders
+rules:
+  - name: row_count
+  type: volume
+      threshold:
+    strategy: static
+    min: 1000

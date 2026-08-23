@@ -1,0 +1,25 @@
+dataset: orders
+rules:
+  - name: row_count
+    type: volume
+    threshold:
+      strategy: static
+      min: 1000
+  - name: customer_id_not_null
+    type: null_rate
+    column: customer_id
+    threshold:
+      strategy: static
+      max: 0.01
+  - name: unique_order_id
+    type: uniqueness
+    column: order_id
+    threshold:
+      strategy: static
+      max_duplicates: 0
+  - name: freshness
+    type: freshness
+    column: updated_at
+    threshold:
+      strategy: static
+      max_delay_minutes: 60
