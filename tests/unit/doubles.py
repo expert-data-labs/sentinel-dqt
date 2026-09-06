@@ -1,12 +1,12 @@
-"""Shared test doubles for Milestone 0's unit tests.
+"""Shared test doubles for Sentinel's unit tests.
 
 FakeDataSource is an in-memory stand-in for the DataSource Protocol, built
 from a list of row dicts, so rule/orchestration tests don't need a real
 DuckDB connection. DummyRule is a Rule that returns a fixed Metric
 regardless of input; DummyThresholdStrategy is a ThresholdStrategy that
 returns a fixed verdict regardless of input. Both dummies exist to test
-their registries and, later, the orchestrator's control flow (Task 7) in
-isolation from any real rule or threshold logic.
+their registries and the orchestrator's control flow in isolation from any
+real rule or threshold logic.
 
 Not a conftest.py: these are plain importable classes, not pytest
 fixtures — nothing here needs autouse injection, and being explicit about
@@ -24,6 +24,21 @@ from typing import Any, ClassVar
 from sentinel.datasources import DataSource
 from sentinel.domain import Metric, RuleConfig, Status, ThresholdConfig, ThresholdResult
 
+_PYTHON_TYPE_TO_CANONICAL: dict[type, str] = {
+    str: "string",
+    bool: "boolean",  # checked before int below — bool is an int subclass
+    int: "integer",
+    float: "float",
+    datetime: "timestamp",
+}
+
+
+def _canonical_type_of(value: Any) -> str:
+    for python_type, canonical in _PYTHON_TYPE_TO_CANONICAL.items():
+        if isinstance(value, python_type):
+            return canonical
+    return "unknown"
+
 
 @dataclass
 class FakeDataSource:
@@ -32,7 +47,14 @@ class FakeDataSource:
     Mirrors the edge-case contracts documented on DataSource itself: an
     empty ``rows`` list behaves like an empty dataset, and a column whose
     values are all ``None`` behaves like an all-null column.
+
+    ``source_type`` is a ClassVar, not something instances vary — this
+    double isn't resolved through the registry anywhere, but it still needs
+    the attribute to structurally satisfy the DataSource Protocol wherever
+    a test passes one in as a ``source: DataSource`` argument.
     """
+
+    source_type: ClassVar[str] = "fake"
 
     rows: Sequence[Mapping[str, Any]] = field(default_factory=list)
 
@@ -49,12 +71,31 @@ class FakeDataSource:
         values = [row[column] for row in self.rows if row.get(column) is not None]
         return max(values) if values else None
 
+    def columns(self) -> dict[str, str]:
+        """Infers each column's canonical type from the first non-null
+        value seen for it, across all rows (a plain in-memory row list has
+        no separate declared schema to read, unlike a real CSV/table).
+        Column order follows first-appearance order across the rows,
+        mirroring how a real header row would order them. A column every
+        row leaves null gives ``"unknown"`` — there's no value to infer a
+        type from, same reasoning ``max_value`` already applies to an
+        all-null column returning ``None`` rather than guessing.
+        """
+        types: dict[str, str] = {}
+        for row in self.rows:
+            for column, value in row.items():
+                if column not in types:
+                    types[column] = "unknown"
+                if value is not None and types[column] == "unknown":
+                    types[column] = _canonical_type_of(value)
+        return types
+
 
 class DummyRule:
     """A Rule that ignores its inputs and returns a fixed value.
 
-    Useful for testing the registry (Task 4) and, later, the orchestrator's
-    wiring (Task 7) without any real measurement logic in the way.
+    Useful for testing the registry and the orchestrator's wiring without
+    any real measurement logic in the way.
     """
 
     rule_type: ClassVar[str] = "dummy"
@@ -68,8 +109,8 @@ class DummyRule:
 
 class DummyThresholdStrategy:
     """A ThresholdStrategy that ignores its inputs and returns a fixed
-    verdict. Useful for testing the registry (Task 5) and, later, the
-    orchestrator's wiring (Task 7) without any real evaluation logic."""
+    verdict. Useful for testing the registry and the orchestrator's wiring
+    without any real evaluation logic."""
 
     strategy_type: ClassVar[str] = "dummy"
 

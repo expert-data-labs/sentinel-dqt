@@ -17,11 +17,18 @@ registry pattern (Task 4/5) exists to avoid. Interpreting and validating
 ``params`` is each concrete ThresholdStrategy's own job, done against its
 own contract, when it runs.
 
-RuleConfig follows the same logic for ``column``: some rule types need one
-(null_rate, uniqueness, freshness), volume/row_count doesn't. A single
-optional field is simpler than a discriminated union keyed by rule type, and
-it costs nothing today — a Rule implementation that needs a column just
-reads it and raises a clear error if it's missing, same as a
+RuleConfig follows a related but distinct logic for its own rule-specific
+fields. ``column`` (Milestone 0/1: null_rate, uniqueness, freshness) and
+``expected_schema`` (Milestone 3: schema validation) are each a single
+dedicated optional field, not folded into an open ``params`` bag the way
+ThresholdConfig's bounds are. The difference is what each field means:
+ThresholdConfig's bounds are all "a number a strategy compares against" —
+genuinely interchangeable shape, just different names — while RuleConfig's
+``column`` is a scalar and ``expected_schema`` is a structured mapping;
+forcing both into one open dict buys nothing a dedicated field doesn't
+already give more simply, and costs a schema every rule type would need to
+independently document. A Rule implementation that needs one of these
+fields just reads it and raises a clear error if it's missing, same as a
 ThresholdStrategy would for a missing param.
 """
 
@@ -64,6 +71,15 @@ class RuleConfig(BaseModel):
     as ``rule_type`` internally so it matches the vocabulary the Rule
     Protocol itself uses (``Rule.rule_type``, Task 4), rather than shadowing
     the ``type`` builtin in every place this field gets read in code.
+
+    ``expected_schema`` (Milestone 3) backs the schema validation rule's
+    ``expected_schema: {column: type, ...}`` YAML shape — see the module
+    docstring for why this is a dedicated field rather than folded into a
+    generic ``params`` bag. Values are expected to be Sentinel's canonical
+    type vocabulary (``DataSource.columns()``); RuleConfig itself doesn't
+    validate against that vocabulary — same deferral-to-the-concrete-rule
+    reasoning ``column`` already follows, since only the rule that reads
+    this field knows what to do with an unrecognized value.
     """
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)
@@ -71,6 +87,7 @@ class RuleConfig(BaseModel):
     name: str = Field(min_length=1)
     rule_type: str = Field(min_length=1, alias="type")
     column: str | None = None
+    expected_schema: dict[str, str] | None = None
     severity: Severity = Severity.WARNING
     blocking: bool = True
     threshold: ThresholdConfig

@@ -4,7 +4,7 @@ A ThresholdStrategy is the runtime-behavior half of a Threshold; the
 config-time-definition half (ThresholdConfig) lives in sentinel.domain.policy.
 """
 
-from sentinel.thresholds.base import ThresholdStrategy
+from sentinel.thresholds.base import ThresholdConfigError, ThresholdStrategy
 from sentinel.thresholds.registry import (
     ThresholdStrategyNotRegisteredError,
     get_threshold_strategy,
@@ -12,6 +12,7 @@ from sentinel.thresholds.registry import (
 )
 
 __all__ = [
+    "ThresholdConfigError",
     "ThresholdStrategy",
     "ThresholdStrategyNotRegisteredError",
     "get_threshold_strategy",

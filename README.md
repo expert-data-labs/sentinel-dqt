@@ -53,3 +53,16 @@ docker run --rm sentinel
 The image installs dependencies with uv and runs the test suite by default. There's nothing to
 serve yet — no CLI or API exists before Milestone 2 — so this is for reproducing the test run
 locally, not for deployment.
+
+## Local Postgres (Milestone 3)
+
+`PostgresDataSource`'s tests need a real Postgres to run against. Start one with:
+
+```bash
+docker compose up -d
+```
+
+This brings up a `postgres:16-alpine` container on `localhost:5432` (db/user/password all
+`sentinel`) — the same credentials CI's own ephemeral Postgres service container uses, so
+`SENTINEL_TEST_POSTGRES_DSN=postgresql://sentinel:sentinel@localhost:5432/sentinel` works
+identically in both places. See `docker-compose.yml` and `.github/workflows/ci.yml`.

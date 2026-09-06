@@ -7,6 +7,8 @@ Protocol structurally (checked by mypy, not at runtime; DataSource has no
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from sentinel.datasources import DataSource
 from tests.unit.doubles import FakeDataSource
 
@@ -51,3 +53,39 @@ def test_max_value_on_empty_dataset_is_none() -> None:
 def test_max_value_returns_the_largest_non_null_value() -> None:
     source: DataSource = FakeDataSource(rows=[{"x": 1}, {"x": 3}, {"x": None}, {"x": 2}])
     assert source.max_value("x") == 3
+
+
+def test_columns_on_empty_dataset_is_an_empty_mapping() -> None:
+    source: DataSource = FakeDataSource(rows=[])
+    assert source.columns() == {}
+
+
+def test_columns_infers_canonical_type_from_first_non_null_value() -> None:
+    source: DataSource = FakeDataSource(
+        rows=[
+            {
+                "order_id": 1001,
+                "customer_id": "C001",
+                "order_total": 59.99,
+                "is_gift": True,
+                "updated_at": datetime(2026, 8, 23, tzinfo=UTC),
+            }
+        ]
+    )
+    assert source.columns() == {
+        "order_id": "integer",
+        "customer_id": "string",
+        "order_total": "float",
+        "is_gift": "boolean",
+        "updated_at": "timestamp",
+    }
+
+
+def test_columns_on_all_null_column_is_unknown_not_a_guess() -> None:
+    source: DataSource = FakeDataSource(rows=[{"notes": None}, {"notes": None}])
+    assert source.columns() == {"notes": "unknown"}
+
+
+def test_columns_preserves_first_appearance_order() -> None:
+    source: DataSource = FakeDataSource(rows=[{"b": 1, "a": 2}])
+    assert list(source.columns()) == ["b", "a"]

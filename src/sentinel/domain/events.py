@@ -95,6 +95,15 @@ class QualityEvent:
     def status(self) -> Status:
         return self.threshold_result.status
 
+    @property
+    def details(self) -> str | None:
+        """Passthrough to ``Metric.details`` (Milestone 3), mirroring
+        ``actual``/``expected``/``status`` exactly: a QualityEvent
+        shouldn't require reaching back into its own ``metric`` field to
+        read structured context a Rule attached. ``None`` for every
+        Milestone 0/1 rule, which never set it."""
+        return self.metric.details
+
 
 @dataclass(frozen=True)
 class ValidationRun:

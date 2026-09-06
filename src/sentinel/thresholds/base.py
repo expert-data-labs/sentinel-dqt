@@ -14,6 +14,20 @@ from typing import ClassVar, Protocol
 from sentinel.domain import Metric, ThresholdConfig, ThresholdResult
 
 
+class ThresholdConfigError(Exception):
+    """A ThresholdConfig's ``params`` is missing (or has an invalid) field
+    its strategy_type requires — e.g. neither ``min`` nor ``max`` for the
+    static strategy.
+
+    Raised by a concrete ThresholdStrategy's ``evaluate()``, not at
+    Policy-load time, for the same reason RuleConfigError isn't raised at
+    load time either (see sentinel.rules.base): ThresholdConfig's
+    ``params`` is deliberately an open, unvalidated dict (see
+    sentinel.domain.policy) until a specific strategy is resolved and
+    asked to interpret it.
+    """
+
+
 class ThresholdStrategy(Protocol):
     """A registered, reusable way of deciding whether a Metric is
     acceptable (FR-04).

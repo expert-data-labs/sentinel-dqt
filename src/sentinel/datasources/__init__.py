@@ -6,5 +6,15 @@ adapter does (FR-10).
 """
 
 from sentinel.datasources.base import DataSource
+from sentinel.datasources.registry import (
+    DataSourceNotRegisteredError,
+    get_data_source,
+    register_data_source,
+)
 
-__all__ = ["DataSource"]
+__all__ = [
+    "DataSource",
+    "DataSourceNotRegisteredError",
+    "get_data_source",
+    "register_data_source",
+]

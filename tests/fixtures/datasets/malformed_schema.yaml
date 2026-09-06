@@ -1,0 +1,5 @@
+# Valid YAML, invalid Dataset: no criticality (required), and owner is missing too.
+id: orders
+name: orders
+source_type: duckdb
+environment: test

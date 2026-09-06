@@ -1,0 +1,11 @@
+# Milestone 2's dataset-resolution convention (see
+# src/sentinel/cli/resolution.py and
+# docs/architecture/0003-milestone-2-architecture.md Part 1): a small
+# sibling YAML per dataset, not a database-backed registry.
+id: orders
+name: orders
+source_type: duckdb
+environment: local
+owner: data-platform-team
+criticality: high
+config_reference: data/orders.csv

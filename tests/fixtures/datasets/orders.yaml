@@ -1,0 +1,7 @@
+id: orders
+name: orders
+source_type: duckdb
+environment: test
+owner: data-platform-team
+criticality: high
+config_reference: data/orders.csv

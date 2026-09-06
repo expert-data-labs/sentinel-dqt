@@ -28,6 +28,7 @@ def test_rule_config_accepts_yaml_style_type_key() -> None:
     )
     assert rule.rule_type == "volume"
     assert rule.column is None
+    assert rule.expected_schema is None
     assert rule.severity is Severity.WARNING
     assert rule.blocking is True
 
@@ -51,6 +52,45 @@ def test_rule_config_column_and_severity_are_settable() -> None:
 def test_rule_config_requires_threshold() -> None:
     with pytest.raises(ValidationError):
         RuleConfig.model_validate({"name": "row_count", "type": "volume"})
+
+
+def test_rule_config_expected_schema_is_settable() -> None:
+    """Milestone 3: the schema validation rule's own YAML shape —
+    ``expected_schema: {column: type, ...}``."""
+    rule = RuleConfig.model_validate(
+        {
+            "name": "orders_schema",
+            "type": "schema",
+            "expected_schema": {
+                "order_id": "string",
+                "customer_id": "string",
+                "amount": "decimal",
+                "created_at": "timestamp",
+            },
+            "threshold": {"strategy": "static", "max": 0},
+        }
+    )
+    assert rule.expected_schema == {
+        "order_id": "string",
+        "customer_id": "string",
+        "amount": "decimal",
+        "created_at": "timestamp",
+    }
+
+
+def test_rule_config_expected_schema_rejects_non_string_values() -> None:
+    """A pydantic field, so a malformed expected_schema fails at
+    policy-load time — not silently accepted and only discovered when a
+    Rule tries to use it."""
+    with pytest.raises(ValidationError):
+        RuleConfig.model_validate(
+            {
+                "name": "orders_schema",
+                "type": "schema",
+                "expected_schema": {"order_id": 123},
+                "threshold": {"strategy": "static", "max": 0},
+            }
+        )
 
 
 def test_policy_requires_at_least_one_rule() -> None:

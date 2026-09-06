@@ -21,13 +21,13 @@ def test_loads_the_prd_example_policy() -> None:
     ]
 
     row_count_rule = policy.rules[0]
-    assert row_count_rule.rule_type == "volume"
+    assert row_count_rule.rule_type == "row_count"
     assert row_count_rule.threshold.strategy == "static"
     assert row_count_rule.threshold.params == {"min": 1000}
 
     freshness_rule = policy.rules[3]
     assert freshness_rule.column == "updated_at"
-    assert freshness_rule.threshold.params == {"max_delay_minutes": 60}
+    assert freshness_rule.threshold.params == {"max": 60}
 
 
 def test_missing_file_raises_policy_load_error() -> None:

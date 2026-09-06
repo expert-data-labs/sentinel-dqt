@@ -17,8 +17,10 @@ from sentinel.domain import (
 )
 
 
-def _metric(value: float = 500.0) -> Metric:
-    return Metric(metric_name="row_count", value=value, computed_at=datetime.now(UTC))
+def _metric(value: float = 500.0, details: str | None = None) -> Metric:
+    return Metric(
+        metric_name="row_count", value=value, computed_at=datetime.now(UTC), details=details
+    )
 
 
 def _threshold_result(status: Status = Status.FAIL) -> ThresholdResult:
@@ -52,6 +54,29 @@ def test_quality_event_exposes_flat_view_over_metric_and_threshold_result() -> N
     assert event.status is Status.FAIL
     assert event.severity is Severity.CRITICAL
     assert event.blocking is True
+
+
+def test_quality_event_details_defaults_to_none() -> None:
+    event = QualityEvent(
+        severity=Severity.WARNING,
+        blocking=True,
+        metric=_metric(),
+        threshold_result=_threshold_result(),
+    )
+    assert event.details is None
+
+
+def test_quality_event_details_passes_through_from_its_metric() -> None:
+    """Milestone 3: details is a read-only passthrough over Metric.details,
+    the same pattern actual/expected/status already use over their own
+    underlying fields."""
+    event = QualityEvent(
+        severity=Severity.WARNING,
+        blocking=True,
+        metric=_metric(details='{"missing_columns": ["created_at"]}'),
+        threshold_result=_threshold_result(),
+    )
+    assert event.details == '{"missing_columns": ["created_at"]}'
 
 
 def test_quality_event_is_frozen() -> None:

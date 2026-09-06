@@ -1,0 +1,27 @@
+# Local Postgres for developing/testing PostgresDataSource against a real
+# database. Start it with `docker compose up -d`, then point
+# PostgresDataSource (or the cross-adapter integration tests, see
+# tests/integration/) at it with:
+#   postgresql://sentinel:sentinel@localhost:5432/sentinel?table=<name>
+#
+# Not used by CI, which brings up its own ephemeral Postgres service
+# container instead (see .github/workflows/ci.yml) with the same
+# credentials, so the same connection URL works in both places without
+# a contributor needing to remember two different sets of credentials.
+# This file is for local development only -- nothing here seeds a schema
+# or data; the integration tests create and tear down whatever tables
+# they need against a running Postgres, real or CI-provisioned.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sentinel
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

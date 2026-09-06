@@ -1,0 +1,3 @@
+id: orders
+  name: orders
+source_type: duckdb

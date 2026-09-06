@@ -1,7 +1,7 @@
 dataset: orders
 rules:
   - name: row_count
-    type: volume
+    type: row_count
     threshold:
       strategy: static
       min: 1000
@@ -16,10 +16,10 @@ rules:
     column: order_id
     threshold:
       strategy: static
-      max_duplicates: 0
+      max: 0
   - name: freshness
     type: freshness
     column: updated_at
     threshold:
       strategy: static
-      max_delay_minutes: 60
+      max: 60

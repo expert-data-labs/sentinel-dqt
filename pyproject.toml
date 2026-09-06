@@ -11,7 +11,29 @@ dependencies = [
     # land, not speculatively.
     "pydantic>=2.7",
     "pyyaml>=6.0",
+    # Milestone 2: DuckDBSource (the data source adapter) and, for now, the
+    # persistence store itself both use duckdb — see
+    # docs/architecture/0003-milestone-2-architecture.md Part 3.
+    "duckdb>=1.0",
+    # duckdb's Python client needs pytz at runtime to convert a fetched
+    # TIMESTAMPTZ column back into a timezone-aware Python datetime — an
+    # implicit dependency of duckdb itself, not something this project's
+    # own code imports. Discovered via `sentinel history`'s real query
+    # against started_at (TIMESTAMPTZ); writing TIMESTAMPTZ values
+    # (persistence/writer.py) doesn't hit this path, only reading them
+    # back out does.
+    "pytz>=2024.1",
+    # Milestone 2: the `sentinel` CLI itself.
+    "typer>=0.12",
+    # Milestone 3: PostgresDataSource. v3 (psycopg, not psycopg2) with
+    # the [binary] extra so contributors don't need a local libpq/
+    # build toolchain just to run `uv sync` -- see
+    # docs/architecture/0004-milestone-3-architecture.md, Open Questions.
+    "psycopg[binary]>=3.1",
 ]
+
+[project.scripts]
+sentinel = "sentinel.cli.main:app"
 
 [dependency-groups]
 dev = [

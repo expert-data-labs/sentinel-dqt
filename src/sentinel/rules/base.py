@@ -15,6 +15,18 @@ from sentinel.datasources.base import DataSource
 from sentinel.domain import Metric, RuleConfig
 
 
+class RuleConfigError(Exception):
+    """A RuleConfig is missing (or has an invalid) field its rule_type
+    requires — e.g. ``column`` for null_rate/uniqueness.
+
+    Raised by a concrete Rule's ``compute()``, not at Policy-load time:
+    RuleConfig itself has no way to know which fields a given rule_type
+    will need (see the module docstring on sentinel.domain.policy), so
+    that validation can only happen once a specific Rule is resolved and
+    asked to run.
+    """
+
+
 class Rule(Protocol):
     """A registered, reusable quality check (FR-03).
 
