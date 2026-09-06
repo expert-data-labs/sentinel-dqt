@@ -28,6 +28,22 @@ class ThresholdConfigError(Exception):
     """
 
 
+class InsufficientHistoryError(Exception):
+    """An adaptive ThresholdStrategy was given fewer historical Metrics
+    than its own ``min_history`` param requires to compute a baseline.
+
+    Deliberately not a subclass of, or interchangeable with,
+    ThresholdConfigError (Milestone 4): the two mean different things to
+    whoever handles them. ThresholdConfigError says the *policy* is
+    wrong — a human needs to fix a YAML file. InsufficientHistoryError
+    says the policy is fine but the *data* isn't there yet — a dataset
+    that's only been validated once or twice has no failure to fix,
+    just history still to accumulate. Conflating them would tell a
+    person "your policy is broken" when the real answer is "come back
+    after a few more runs."
+    """
+
+
 class ThresholdStrategy(Protocol):
     """A registered, reusable way of deciding whether a Metric is
     acceptable (FR-04).
@@ -49,18 +65,20 @@ class ThresholdStrategy(Protocol):
     ) -> ThresholdResult:
         """Judge ``metric`` against ``config``, returning a verdict.
 
-        ``history`` is prior Metrics for the same rule, in whatever order
-        the orchestrator supplies them. A static strategy ignores it; an
-        adaptive one (percentage deviation, statistical, seasonal —
-        Milestone 4) requires it. It defaults to an empty sequence rather
-        than being Optional so every implementation treats it uniformly,
-        whether or not it's used.
+        ``history`` is prior Metrics for the same rule, most recent
+        first (see sentinel.thresholds.history.HistoricalMetricsSource),
+        supplied by the orchestrator via an injected
+        HistoricalMetricsSource — Milestone 4. A static strategy ignores
+        it; an adaptive one (percentage deviation, statistical, median/
+        MAD, seasonal) requires it, and raises InsufficientHistoryError
+        if fewer entries are present than its own ``min_history`` param
+        needs. It defaults to an empty sequence rather than being
+        Optional so every implementation treats it uniformly, whether or
+        not it's used.
 
         ``config.params`` is an unvalidated bag of whatever the policy
-        author wrote (see ThresholdConfig) — interpreting it, and raising a
-        clear error if something this strategy requires is missing, is
-        this method's job. What exception type to raise is left to whoever
-        implements the first concrete strategy (Milestone 1); nothing in
-        Milestone 0 depends on a specific one yet.
+        author wrote (see ThresholdConfig) — interpreting it, and raising
+        ThresholdConfigError if something this strategy requires is
+        missing, is this method's job.
         """
         ...

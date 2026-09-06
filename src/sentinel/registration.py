@@ -1,6 +1,6 @@
 """Bootstraps the Rule Engine, Threshold Engine, and DataSource registry
-by importing every concrete implementation Milestone 1 and 2 ship, which
-is what actually triggers their ``@register_rule`` /
+by importing every concrete implementation Milestone 1, 2, and 4 ship,
+which is what actually triggers their ``@register_rule`` /
 ``@register_threshold_strategy`` / ``@register_data_source`` decorators.
 
 Nothing else in the package imports ``sentinel.rules.row_count`` (or its
@@ -38,4 +38,10 @@ def register_all() -> None:
         schema_validation,
         uniqueness,
     )
-    from sentinel.thresholds import static  # noqa: F401
+    from sentinel.thresholds import (  # noqa: F401
+        median_mad,
+        percentage_deviation,
+        seasonal,
+        statistical,
+        static,
+    )

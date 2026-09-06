@@ -5,14 +5,19 @@ quality policy (what "good data" means for a dataset) from pipeline implementati
 declare expectations in configuration and Sentinel handles execution, threshold evaluation,
 historical context, and incident prioritization.
 
-**Status:** Milestone 0 (architecture and foundation) complete. The domain model, the three
-pluggable interfaces (Rule, ThresholdStrategy, DataSource) with their registries, the policy
-loader, and the ValidationOrchestrator that wires them together are all in place and tested — but
-no concrete Rule, ThresholdStrategy, or DataSource implementation exists yet. Running a real policy
-against real data is Milestone 1's job.
+**Status:** Milestones 0-4 complete. The domain model, the three pluggable interfaces (Rule,
+ThresholdStrategy, DataSource), a CLI, DuckDB and Postgres-backed persistence, and concrete Rule
+and ThresholdStrategy implementations are all in place and tested. Milestone 4 adds
+historical-metrics-aware ("adaptive") threshold strategies -- Percentage Deviation, Statistical
+(Mean/StdDev), Median/MAD, and Seasonal Baseline -- alongside the original static thresholds, plus
+a synthetic evaluation framework (`experiments/threshold_intelligence/`) that measures each
+strategy's false-positive/false-negative behavior against controlled synthetic scenarios.
 
-See `docs/architecture/0001-milestone-0-architecture.md` for the approved architecture: problem
-decomposition, domain model, interface contracts, and the reasoning behind each decision.
+See `docs/architecture/0005-milestone-4-design.md` for the Milestone 4 design and findings
+(including a "Definition of Done" section answering when each strategy is and isn't
+appropriate), `docs/experiments/milestone-4-results.md` for the raw results, and
+`docs/architecture/0001-milestone-0-architecture.md` onward for the earlier milestones' approved
+architecture.
 
 ## Project layout
 

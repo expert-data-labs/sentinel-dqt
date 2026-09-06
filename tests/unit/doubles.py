@@ -6,7 +6,10 @@ DuckDB connection. DummyRule is a Rule that returns a fixed Metric
 regardless of input; DummyThresholdStrategy is a ThresholdStrategy that
 returns a fixed verdict regardless of input. Both dummies exist to test
 their registries and the orchestrator's control flow in isolation from any
-real rule or threshold logic.
+real rule or threshold logic. FakeHistorySource (Milestone 4) is the same
+idea applied to HistoricalMetricsSource: an in-memory stand-in so a
+strategy or orchestrator test can control exactly what history is "on
+record" without touching persistence.
 
 Not a conftest.py: these are plain importable classes, not pytest
 fixtures — nothing here needs autouse injection, and being explicit about
@@ -128,3 +131,22 @@ class DummyThresholdStrategy:
             expected="dummy expectation",
             strategy_type=self.strategy_type,
         )
+
+
+@dataclass
+class FakeHistorySource:
+    """An in-memory HistoricalMetricsSource, keyed by ``(dataset_id,
+    metric_name)`` (see sentinel.thresholds.history for the real
+    Protocol).
+
+    Lets a test hand an orchestrator or a strategy exactly the history it
+    wants to exercise, without standing up any persistence — the same
+    role FakeDataSource plays for DataSource. An unrecognized key answers
+    with an empty tuple, matching HistoricalMetricsSource's own contract
+    that "no history yet" is an ordinary answer, not an error.
+    """
+
+    history: Mapping[tuple[str, str], Sequence[Metric]] = field(default_factory=dict)
+
+    def get_history(self, dataset_id: str, metric_name: str) -> Sequence[Metric]:
+        return self.history.get((dataset_id, metric_name), ())

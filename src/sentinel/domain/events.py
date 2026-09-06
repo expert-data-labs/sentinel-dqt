@@ -50,11 +50,27 @@ class ThresholdResult:
     (e.g. "row_count >= 1000"), not a structured value — different
     strategies express "what was expected" too differently (a fixed bound
     vs. a percentage band vs. a statistical interval) to force into one
-    shape yet. Revisit if a consumer needs it structured."""
+    shape yet. Revisit if a consumer needs it structured.
+
+    ``details`` (Milestone 4) is that revisit, for the strategies that
+    need it: a JSON-encoded string carrying an adaptive strategy's
+    computed baseline, bounds, deviation, and sample size — the same
+    answer Milestone 3 gave ``Metric`` for the identical problem
+    (see ``Metric.details``'s own docstring). ``expected`` stays the
+    short human-readable line; ``details`` is the machine-readable
+    backing data behind it. Optional and ``None`` by default —
+    ``StaticThresholdStrategy`` and every strategy that predates
+    Milestone 4 leaves it unset, same as every Milestone 0/1 rule left
+    ``Metric.details`` unset. Not persisted this milestone either (no
+    ``quality_events.details`` column) — visible on the in-memory
+    QualityEvent for the CLI and the synthetic experiment framework,
+    exactly the scope ``Metric.details`` shipped with in Milestone 3.
+    """
 
     status: Status
     expected: str
     strategy_type: str
+    details: str | None = None
 
 
 @dataclass(frozen=True)
@@ -103,6 +119,18 @@ class QualityEvent:
         read structured context a Rule attached. ``None`` for every
         Milestone 0/1 rule, which never set it."""
         return self.metric.details
+
+    @property
+    def threshold_details(self) -> str | None:
+        """Passthrough to ``ThresholdResult.details`` (Milestone 4) — the
+        adaptive-strategy counterpart to ``details`` above. Kept as a
+        separate property, not folded into ``details``, because the two
+        answer different questions: ``details`` is what a Rule *observed*
+        (e.g. a schema diff); ``threshold_details`` is how a
+        ThresholdStrategy *judged* it (a baseline, bounds, a deviation).
+        ``None`` for every strategy that predates Milestone 4, and for
+        Static, which never sets it."""
+        return self.threshold_result.details
 
 
 @dataclass(frozen=True)

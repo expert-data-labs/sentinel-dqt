@@ -28,6 +28,13 @@ This is the question Milestone 0 explicitly left open when it added
 ``QualityEvent.blocking`` without folding it into ``ValidationRun.status``
 ("that's a Milestone 2 CLI decision") — resolved here, at the one layer
 that actually needs to turn a judgment into a process outcome.
+
+Milestone 4: ``validate`` builds a ``DuckDBHistoricalMetricsSource`` from
+the same connection ``AppContext`` already opens and hands it to
+``ValidationOrchestrator``, so adaptive threshold strategies can see prior
+runs' Metrics. ``history`` (the CLI command, unrelated to the
+``history: Sequence[Metric]`` a ThresholdStrategy receives) is unaffected
+— it still reads only ``list_recent_runs``'s own projection.
 """
 
 from __future__ import annotations
@@ -41,6 +48,7 @@ from sentinel.cli.resolution import resolve_dataset, resolve_policy
 from sentinel.datasources import get_data_source
 from sentinel.domain import QualityEvent, Status, ValidationRun
 from sentinel.orchestration import ValidationOrchestrator
+from sentinel.persistence.history import DuckDBHistoricalMetricsSource
 from sentinel.persistence.reader import RunSummary, list_recent_runs
 from sentinel.persistence.writer import persist_validation_run
 
@@ -103,7 +111,9 @@ def validate(
     policy = resolve_policy(dataset)
     source = get_data_source(resolved_dataset.source_type, resolved_dataset.config_reference)
 
-    run = ValidationOrchestrator().run(resolved_dataset, policy, source)
+    history_source = DuckDBHistoricalMetricsSource(context.conn)
+    orchestrator = ValidationOrchestrator(history_source=history_source)
+    run = orchestrator.run(resolved_dataset, policy, source)
     run_id = persist_validation_run(context.conn, run)
 
     exit_code = _exit_code(run)

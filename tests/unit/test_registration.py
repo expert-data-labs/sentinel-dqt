@@ -12,7 +12,7 @@ permanent by the time any test runs, regardless of whether register_all()
 has been called yet in this file — so there is no meaningful "before
 register_all(), nothing is registered" state to assert within a shared
 pytest session. What *is* reliably true regardless of import order is
-asserted below instead: that register_all() covers every Milestone 1/2
+asserted below instead: that register_all() covers every Milestone 1/2/4
 type, and that calling it more than once is safe.
 """
 
@@ -36,6 +36,15 @@ def test_register_all_makes_the_static_strategy_resolvable() -> None:
     register_all()
 
     assert get_threshold_strategy("static").strategy_type == "static"
+
+
+def test_register_all_makes_every_milestone_4_strategy_resolvable() -> None:
+    register_all()
+
+    assert get_threshold_strategy("percentage_deviation").strategy_type == "percentage_deviation"
+    assert get_threshold_strategy("statistical").strategy_type == "statistical"
+    assert get_threshold_strategy("median_mad").strategy_type == "median_mad"
+    assert get_threshold_strategy("seasonal").strategy_type == "seasonal"
 
 
 def test_register_all_makes_the_duckdb_source_resolvable() -> None:
