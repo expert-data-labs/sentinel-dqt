@@ -18,9 +18,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from sentinel.domain.dataset import Dataset
 from sentinel.domain.metric import Metric
+
+if TYPE_CHECKING:
+    # Deferred: sentinel.domain.incident imports QualityEvent from this module,
+    # so importing Incident here at module load time would be circular. Safe as
+    # a type-checking-only import because `from __future__ import annotations`
+    # already makes every annotation in this file a lazily-evaluated string.
+    from sentinel.domain.incident import Incident
 
 
 class Status(StrEnum):
@@ -149,6 +157,14 @@ class ValidationRun:
     "worst status across quality_events" is behavior, and this module holds
     no behavior. That aggregation belongs to whatever assembles this object
     (the ValidationOrchestrator, Milestone 0's Task 7).
+
+    ``incidents`` (Milestone 5) holds one Incident per non-PASS QualityEvent
+    in ``quality_events`` -- see sentinel.domain.incident's own docstring for
+    why only non-PASS events are prioritized. Defaults to ``()`` so every
+    Milestone 0-4 construction site (including every existing test) keeps
+    building a ValidationRun without this argument and is unaffected; the
+    ValidationOrchestrator (Milestone 5) is the only caller that populates it
+    for real.
     """
 
     dataset: Dataset
@@ -157,3 +173,4 @@ class ValidationRun:
     finished_at: datetime
     status: Status
     quality_events: tuple[QualityEvent, ...]
+    incidents: tuple[Incident, ...] = ()

@@ -35,6 +35,14 @@ the same connection ``AppContext`` already opens and hands it to
 runs' Metrics. ``history`` (the CLI command, unrelated to the
 ``history: Sequence[Metric]`` a ThresholdStrategy receives) is unaffected
 — it still reads only ``list_recent_runs``'s own projection.
+
+Milestone 5: ``validate`` also builds a ``DuckDBFailureHistorySource``
+from the same connection, hands it to ``ValidationOrchestrator`` alongside
+the Milestone 4 history source, and the printed summary gains one
+priority + top-reason line per non-passing event — the explainability
+Milestone 5 requires (docs/architecture/0006-milestone-5-design.md Part
+11), surfaced in the existing summary rather than a new command or
+dashboard.
 """
 
 from __future__ import annotations
@@ -46,8 +54,9 @@ import typer
 from sentinel.cli.bootstrap import build_context
 from sentinel.cli.resolution import resolve_dataset, resolve_policy
 from sentinel.datasources import get_data_source
-from sentinel.domain import QualityEvent, Status, ValidationRun
+from sentinel.domain import Incident, QualityEvent, Status, ValidationRun
 from sentinel.orchestration import ValidationOrchestrator
+from sentinel.persistence.failure_history import DuckDBFailureHistorySource
 from sentinel.persistence.history import DuckDBHistoricalMetricsSource
 from sentinel.persistence.reader import RunSummary, list_recent_runs
 from sentinel.persistence.writer import persist_validation_run
@@ -83,6 +92,18 @@ def _format_value(value: float) -> str:
     return f"{value:.4g}"
 
 
+def _incident_for(run: ValidationRun, event: QualityEvent) -> Incident | None:
+    """The Incident matching ``event``, if any -- run.incidents has one
+    entry per non-PASS event, in the same relative order as
+    run.quality_events (see ValidationOrchestrator.run), but is shorter
+    than quality_events whenever some rules passed, so this can't be a
+    plain zip()."""
+    for incident in run.incidents:
+        if incident.quality_event is event:
+            return incident
+    return None
+
+
 def _print_summary(run: ValidationRun, run_id: uuid.UUID, exit_code: int) -> None:
     typer.echo(f"Dataset: {run.dataset.name}")
     typer.echo(f"Run ID:  {run_id}")
@@ -92,6 +113,13 @@ def _print_summary(run: ValidationRun, run_id: uuid.UUID, exit_code: int) -> Non
         mark = "✓" if event.status is Status.PASS else "✗"
         actual = _format_value(event.actual)
         typer.echo(f"  {mark} {event.rule_name}  actual={actual}  expected: {event.expected}")
+        incident = _incident_for(run, event)
+        if incident is not None:
+            top_reason = incident.reasons[0] if incident.reasons else ""
+            typer.echo(
+                f"      priority={incident.priority.value.upper()} "
+                f"score={incident.score}  {top_reason}"
+            )
 
 
 _DATASET_HELP = (
@@ -112,7 +140,11 @@ def validate(
     source = get_data_source(resolved_dataset.source_type, resolved_dataset.config_reference)
 
     history_source = DuckDBHistoricalMetricsSource(context.conn)
-    orchestrator = ValidationOrchestrator(history_source=history_source)
+    failure_history_source = DuckDBFailureHistorySource(context.conn)
+    orchestrator = ValidationOrchestrator(
+        history_source=history_source,
+        failure_history_source=failure_history_source,
+    )
     run = orchestrator.run(resolved_dataset, policy, source)
     run_id = persist_validation_run(context.conn, run)
 

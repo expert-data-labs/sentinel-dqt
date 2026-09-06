@@ -5,19 +5,24 @@ quality policy (what "good data" means for a dataset) from pipeline implementati
 declare expectations in configuration and Sentinel handles execution, threshold evaluation,
 historical context, and incident prioritization.
 
-**Status:** Milestones 0-4 complete. The domain model, the three pluggable interfaces (Rule,
+**Status:** Milestones 0-5 complete. The domain model, the three pluggable interfaces (Rule,
 ThresholdStrategy, DataSource), a CLI, DuckDB and Postgres-backed persistence, and concrete Rule
 and ThresholdStrategy implementations are all in place and tested. Milestone 4 adds
 historical-metrics-aware ("adaptive") threshold strategies -- Percentage Deviation, Statistical
 (Mean/StdDev), Median/MAD, and Seasonal Baseline -- alongside the original static thresholds, plus
 a synthetic evaluation framework (`experiments/threshold_intelligence/`) that measures each
 strategy's false-positive/false-negative behavior against controlled synthetic scenarios.
+Milestone 5 turns a non-passing validation into an explainable, prioritized `Incident`
+(INFO/WARNING/HIGH/CRITICAL) by combining validation severity, dataset criticality, deviation
+magnitude, historical failure frequency, and anomaly confidence into one deterministic, weighted
+score -- deliberately no ML, microservices, or external incident-management integrations.
 
-See `docs/architecture/0005-milestone-4-design.md` for the Milestone 4 design and findings
-(including a "Definition of Done" section answering when each strategy is and isn't
-appropriate), `docs/experiments/milestone-4-results.md` for the raw results, and
-`docs/architecture/0001-milestone-0-architecture.md` onward for the earlier milestones' approved
-architecture.
+See `docs/architecture/0006-milestone-5-design.md` for the Milestone 5 design, engineering
+analysis, and verification notes, `docs/architecture/0005-milestone-4-design.md` for the
+Milestone 4 design and findings (including a "Definition of Done" section answering when each
+strategy is and isn't appropriate), `docs/experiments/milestone-4-results.md` for the raw
+results, and `docs/architecture/0001-milestone-0-architecture.md` onward for the earlier
+milestones' approved architecture.
 
 ## Project layout
 

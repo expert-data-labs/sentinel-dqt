@@ -15,12 +15,16 @@ from sentinel.domain.events import (
     ThresholdResult,
     ValidationRun,
 )
+from sentinel.domain.incident import Incident, IncidentPriority, IncidentScoreComponents
 from sentinel.domain.metric import Metric
 from sentinel.domain.policy import Policy, RuleConfig, ThresholdConfig
 
 __all__ = [
     "Criticality",
     "Dataset",
+    "Incident",
+    "IncidentPriority",
+    "IncidentScoreComponents",
     "Metric",
     "Policy",
     "QualityEvent",

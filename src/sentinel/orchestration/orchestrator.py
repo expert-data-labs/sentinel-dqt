@@ -29,6 +29,16 @@ strategy is about to receive it, and never branches on strategy_type to
 decide whether history is worth fetching. A static strategy simply
 ignores the (possibly empty) history it's handed, exactly as it always
 has, which is what keeps Milestone 0-3 behavior unchanged.
+
+Milestone 5 adds one more, analogous responsibility: once a QualityEvent
+is built, if its status is not PASS, fetching that rule's prior outcomes
+(via an injected FailureHistorySource) and handing the event, the Dataset,
+and that history to an IncidentPrioritizer to produce an Incident (see
+docs/architecture/0006-milestone-5-design.md Part 10). Same discipline as
+Milestone 4: this is the only new responsibility added here, prioritization
+itself lives entirely in sentinel.prioritization, and a PASS event is
+simply never prioritized rather than the orchestrator branching on rule
+type or strategy type to decide.
 """
 
 from __future__ import annotations
@@ -37,7 +47,12 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 
 from sentinel.datasources import DataSource
-from sentinel.domain import Dataset, Policy, QualityEvent, Status, ValidationRun
+from sentinel.domain import Dataset, Incident, Policy, QualityEvent, Status, ValidationRun
+from sentinel.prioritization import (
+    FailureHistorySource,
+    IncidentPrioritizer,
+    NullFailureHistorySource,
+)
 from sentinel.rules import get_rule
 from sentinel.thresholds import HistoricalMetricsSource, NullHistorySource, get_threshold_strategy
 
@@ -79,6 +94,15 @@ class ValidationOrchestrator:
     ``persistence.engine.get_connection`` already uses for its own
     optional argument.
 
+    ``failure_history_source`` (Milestone 5) is the identical pattern
+    applied to IncidentPrioritizer's own dependency: defaults to
+    ``NullFailureHistorySource`` (always answers "no history", so every
+    non-PASS event is treated as a first occurrence) so every construction
+    site that predates Milestone 5 keeps working unmodified.
+    ``prioritizer`` defaults to a plain ``IncidentPrioritizer()`` (which
+    itself defaults to ``DEFAULT_INCIDENT_PRIORITIZATION_CONFIG`` — see
+    sentinel.prioritization.config) rather than requiring one either.
+
     Rule and ThresholdStrategy lookup failures
     (RuleNotRegisteredError, ThresholdStrategyNotRegisteredError) are
     allowed to propagate rather than being wrapped in an orchestrator-
@@ -87,15 +111,27 @@ class ValidationOrchestrator:
     would be guessing.
     """
 
-    def __init__(self, history_source: HistoricalMetricsSource | None = None) -> None:
+    def __init__(
+        self,
+        history_source: HistoricalMetricsSource | None = None,
+        failure_history_source: FailureHistorySource | None = None,
+        prioritizer: IncidentPrioritizer | None = None,
+    ) -> None:
         self._history_source = (
             history_source if history_source is not None else NullHistorySource()
         )
+        self._failure_history_source = (
+            failure_history_source
+            if failure_history_source is not None
+            else NullFailureHistorySource()
+        )
+        self._prioritizer = prioritizer if prioritizer is not None else IncidentPrioritizer()
 
     def run(self, dataset: Dataset, policy: Policy, source: DataSource) -> ValidationRun:
         started_at = datetime.now(UTC)
 
         events: list[QualityEvent] = []
+        incidents: list[Incident] = []
         for rule_config in policy.rules:
             rule = get_rule(rule_config.rule_type)
             metric = rule.compute(source, rule_config)
@@ -105,14 +141,22 @@ class ValidationOrchestrator:
             strategy = get_threshold_strategy(rule_config.threshold.strategy)
             threshold_result = strategy.evaluate(metric, rule_config.threshold, history)
 
-            events.append(
-                QualityEvent(
-                    severity=rule_config.severity,
-                    blocking=rule_config.blocking,
-                    metric=metric,
-                    threshold_result=threshold_result,
-                )
+            event = QualityEvent(
+                severity=rule_config.severity,
+                blocking=rule_config.blocking,
+                metric=metric,
+                threshold_result=threshold_result,
             )
+            events.append(event)
+
+            # Milestone 5: only a non-PASS event has anything to prioritize
+            # (sentinel.domain.incident's own docstring) — a passing check
+            # never fetches failure history or produces an Incident.
+            if event.status is not Status.PASS:
+                failure_outcomes = self._failure_history_source.get_outcomes(
+                    dataset.id, rule_config.name
+                )
+                incidents.append(self._prioritizer.prioritize(dataset, event, failure_outcomes))
 
         finished_at = datetime.now(UTC)
 
@@ -123,4 +167,5 @@ class ValidationOrchestrator:
             finished_at=finished_at,
             status=_worst_status(event.status for event in events),
             quality_events=tuple(events),
+            incidents=tuple(incidents),
         )

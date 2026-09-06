@@ -14,10 +14,22 @@ Only ever produces Status.PASS or Status.FAIL. Status.WARN stays a valid
 value on ThresholdResult, but nothing about a fixed bound has a "soft"
 middle band to justify it — that's reserved for an adaptive strategy
 (Milestone 4) with an actual two-tier concept of acceptable.
+
+``details`` (Milestone 5): unlike Milestone 4's adaptive strategies, this
+strategy had no structured ``details`` until now — there was nothing an
+in-memory bound needed to explain beyond the ``expected`` string. Incident
+prioritization (sentinel.prioritization.deviation) needs a machine-readable
+``actual``/``min``/``max`` to compute a normalized deviation magnitude
+uniformly across every strategy_type, the same way it already reads the
+adaptive strategies' own ``details``. This is purely additive: the field
+was already optional and defaulted to ``None`` on ThresholdResult since
+Milestone 4, so no existing caller or test that ignores ``details`` is
+affected.
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from typing import Any, ClassVar
 
@@ -65,8 +77,16 @@ class StaticThresholdStrategy:
             max_bound is None or metric.value <= max_bound
         )
 
+        details: dict[str, Any] = {
+            "method": "static",
+            "actual": metric.value,
+            "min": min_bound,
+            "max": max_bound,
+        }
+
         return ThresholdResult(
             status=Status.PASS if within_bounds else Status.FAIL,
             expected=_describe_expectation(metric.metric_name, min_bound, max_bound),
             strategy_type=self.strategy_type,
+            details=json.dumps(details),
         )

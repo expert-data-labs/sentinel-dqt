@@ -11,6 +11,11 @@ idea applied to HistoricalMetricsSource: an in-memory stand-in so a
 strategy or orchestrator test can control exactly what history is "on
 record" without touching persistence.
 
+FakeFailureHistorySource (Milestone 5) is the same idea again, applied to
+FailureHistorySource: an in-memory stand-in so a frequency/confidence/
+prioritizer test can control exactly what outcome history is "on record"
+without touching persistence.
+
 Not a conftest.py: these are plain importable classes, not pytest
 fixtures — nothing here needs autouse injection, and being explicit about
 which test imports which double is more readable than implicit fixture
@@ -150,3 +155,21 @@ class FakeHistorySource:
 
     def get_history(self, dataset_id: str, metric_name: str) -> Sequence[Metric]:
         return self.history.get((dataset_id, metric_name), ())
+
+
+@dataclass
+class FakeFailureHistorySource:
+    """An in-memory FailureHistorySource, keyed by ``(dataset_id,
+    metric_name)`` (see sentinel.prioritization.history for the real
+    Protocol).
+
+    Same role FakeHistorySource plays for HistoricalMetricsSource, applied
+    to outcome (Status) history instead of Metric-value history. An
+    unrecognized key answers with an empty tuple, matching
+    FailureHistorySource's own "no history yet is ordinary" contract.
+    """
+
+    outcomes: Mapping[tuple[str, str], Sequence[Status]] = field(default_factory=dict)
+
+    def get_outcomes(self, dataset_id: str, metric_name: str) -> Sequence[Status]:
+        return self.outcomes.get((dataset_id, metric_name), ())

@@ -21,7 +21,13 @@ from sentinel.rules import register_rule
 from sentinel.rules import registry as rule_registry_module
 from sentinel.thresholds import register_threshold_strategy
 from sentinel.thresholds import registry as threshold_registry_module
-from tests.unit.doubles import DummyRule, DummyThresholdStrategy, FakeDataSource, FakeHistorySource
+from tests.unit.doubles import (
+    DummyRule,
+    DummyThresholdStrategy,
+    FakeDataSource,
+    FakeFailureHistorySource,
+    FakeHistorySource,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -183,3 +189,126 @@ def test_history_source_result_is_scoped_by_dataset_id_and_rule_name_and_passed_
 )
 def test_worst_status_picks_the_most_severe(statuses: list[Status], expected: Status) -> None:
     assert _worst_status(statuses) is expected
+
+
+# -- Milestone 5: incident prioritization integration -------------------------
+#
+# DummyThresholdStrategy always answers Status.PASS regardless of any
+# constructor argument -- the registry builds a fresh instance with no
+# args each time (see registry.get_threshold_strategy) -- so the tests
+# below that need a FAIL/WARN verdict register their own small strategy
+# double instead, the same pattern _HistoryCapturingStrategy above
+# already establishes for Milestone 4.
+
+
+def test_default_prioritizer_produces_an_incident_for_a_failing_event() -> None:
+    class _FailingStrategy:
+        strategy_type = "always_fail"
+
+        def evaluate(self, metric, config, history=()):  # type: ignore[no-untyped-def]
+            return ThresholdResult(
+                status=Status.FAIL, expected="n/a", strategy_type=self.strategy_type
+            )
+
+    register_rule(DummyRule)
+    register_threshold_strategy(_FailingStrategy)
+
+    run = ValidationOrchestrator().run(
+        dataset=_dataset(),
+        policy=_policy("row_count", strategy="always_fail"),
+        source=FakeDataSource(rows=[]),
+    )
+
+    assert run.status is Status.FAIL
+    assert len(run.incidents) == 1
+    assert run.incidents[0].quality_event is run.quality_events[0]
+
+
+def test_passing_events_produce_no_incidents() -> None:
+    register_rule(DummyRule)
+    register_threshold_strategy(DummyThresholdStrategy)  # defaults to Status.PASS
+
+    run = ValidationOrchestrator().run(
+        dataset=_dataset(), policy=_policy("row_count"), source=FakeDataSource(rows=[])
+    )
+
+    assert run.status is Status.PASS
+    assert run.incidents == ()
+
+
+def test_incidents_are_only_produced_for_non_pass_events_among_several_rules() -> None:
+    """Edge case: multiple QualityEvents in one ValidationRun -- some pass,
+    some don't; only the non-PASS ones get an Incident, and run.incidents
+    stays shorter than run.quality_events."""
+
+    class _MixedStrategy:
+        strategy_type = "mixed"
+
+        def evaluate(self, metric, config, history=()):  # type: ignore[no-untyped-def]
+            status = Status.FAIL if metric.metric_name == "null_rate" else Status.PASS
+            return ThresholdResult(status=status, expected="n/a", strategy_type=self.strategy_type)
+
+    register_rule(DummyRule)
+    register_threshold_strategy(_MixedStrategy)
+
+    run = ValidationOrchestrator().run(
+        dataset=_dataset(),
+        policy=_policy("row_count", "null_rate", strategy="mixed"),
+        source=FakeDataSource(rows=[]),
+    )
+
+    assert len(run.quality_events) == 2
+    assert len(run.incidents) == 1
+    assert run.incidents[0].quality_event.rule_name == "null_rate"
+
+
+def test_default_failure_history_source_treats_every_failure_as_first_occurrence() -> None:
+    """No failure_history_source passed in -> NullFailureHistorySource ->
+    every non-PASS event is scored as a first occurrence, same discipline
+    Milestone 4's NullHistorySource default already established."""
+
+    class _FailingStrategy:
+        strategy_type = "always_fail_2"
+
+        def evaluate(self, metric, config, history=()):  # type: ignore[no-untyped-def]
+            return ThresholdResult(
+                status=Status.FAIL, expected="n/a", strategy_type=self.strategy_type
+            )
+
+    register_rule(DummyRule)
+    register_threshold_strategy(_FailingStrategy)
+
+    run = ValidationOrchestrator().run(
+        dataset=_dataset(),
+        policy=_policy("row_count", strategy="always_fail_2"),
+        source=FakeDataSource(rows=[]),
+    )
+
+    assert run.incidents[0].components.frequency_score == 10.0
+
+
+def test_failure_history_source_is_scoped_by_dataset_id_and_rule_name() -> None:
+    class _FailingStrategy:
+        strategy_type = "always_fail_3"
+
+        def evaluate(self, metric, config, history=()):  # type: ignore[no-untyped-def]
+            return ThresholdResult(
+                status=Status.FAIL, expected="n/a", strategy_type=self.strategy_type
+            )
+
+    register_rule(DummyRule)
+    register_threshold_strategy(_FailingStrategy)
+
+    failure_history_source = FakeFailureHistorySource(
+        outcomes={("orders", "row_count"): (Status.FAIL,) * 9 + (Status.PASS,)}
+    )
+
+    run = ValidationOrchestrator(failure_history_source=failure_history_source).run(
+        dataset=_dataset("orders"),
+        policy=_policy("row_count", strategy="always_fail_3"),
+        source=FakeDataSource(rows=[]),
+    )
+
+    incident = run.incidents[0]
+    assert incident.components.frequency_score > 10.0  # not treated as a first occurrence
+
