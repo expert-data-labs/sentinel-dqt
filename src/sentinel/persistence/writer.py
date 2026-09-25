@@ -1,8 +1,15 @@
 """Writes a fully-mapped validation run to the persistence store.
 
-One function, shaped around exactly what ``sentinel validate`` needs —
+One function, shaped around exactly what ``sentinel validate`` needs --
 see docs/architecture/0003-milestone-2-architecture.md Part 6 for why
 this is a narrow function rather than a generic repository.
+
+Milestone 6 adds one more insert loop, ``incidents``, in the same
+transaction as everything else -- an Incident is only ever meaningful
+alongside the ValidationRun and QualityEvent that produced it, so it's
+never persisted independently of them. ``quality_events.details`` (also
+Milestone 6) is written as part of the existing quality_events insert,
+not a separate statement.
 """
 
 from __future__ import annotations
@@ -16,17 +23,17 @@ from sentinel.persistence.mapping import to_rows
 
 
 def persist_validation_run(conn: duckdb.DuckDBPyConnection, run: ValidationRun) -> uuid.UUID:
-    """Persist the run's dataset, the run itself, its metrics, and its
-    quality events in one transaction, returning the generated
-    ``validation_runs.id``.
+    """Persist the run's dataset, the run itself, its metrics, its
+    quality events, and its incidents in one transaction, returning the
+    generated ``validation_runs.id``.
 
-    Takes only ``run`` — its ``dataset`` field already carries the full
+    Takes only ``run`` -- its ``dataset`` field already carries the full
     Dataset object (see mapping.py's own docstring for why ``to_rows``
     doesn't accept a separate one).
 
     The dataset row is upserted on every call (``ON CONFLICT ... DO
     UPDATE``) rather than requiring a separate "register this dataset"
-    step first — a full dataset registry is out of scope for this
+    step first -- a full dataset registry is out of scope for this
     milestone (docs/architecture/0003-milestone-2-architecture.md Part 1),
     so the dataset row's source of truth stays whatever local Dataset
     object the CLI just resolved from ``datasets/<name>.yaml``, refreshed
@@ -96,8 +103,8 @@ def persist_validation_run(conn: duckdb.DuckDBPyConnection, run: ValidationRun) 
                 """
                 INSERT INTO quality_events
                     (id, validation_run_id, metric_id, status, expected,
-                     strategy_type, severity, blocking)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                     strategy_type, severity, blocking, details)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     event.id,
@@ -108,6 +115,26 @@ def persist_validation_run(conn: duckdb.DuckDBPyConnection, run: ValidationRun) 
                     event.strategy_type,
                     event.severity,
                     event.blocking,
+                    event.details,
+                ],
+            )
+
+        for incident in persistable.incidents:
+            conn.execute(
+                """
+                INSERT INTO incidents
+                    (id, validation_run_id, quality_event_id, priority, score,
+                     components, reasons)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    incident.id,
+                    incident.validation_run_id,
+                    incident.quality_event_id,
+                    incident.priority,
+                    incident.score,
+                    incident.components,
+                    incident.reasons,
                 ],
             )
     except Exception:

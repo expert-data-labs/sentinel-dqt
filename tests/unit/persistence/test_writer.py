@@ -15,6 +15,7 @@ from sentinel.domain import (
     ThresholdResult,
     ValidationRun,
 )
+from sentinel.domain.incident import Incident, IncidentPriority, IncidentScoreComponents
 from sentinel.persistence.engine import get_connection
 from sentinel.persistence.schema import ensure_schema
 from sentinel.persistence.writer import persist_validation_run
@@ -111,3 +112,156 @@ def test_persist_two_runs_for_the_same_dataset_creates_two_run_rows(tmp_path: Pa
         "SELECT count(*) FROM validation_runs WHERE dataset_id = 'orders'"
     ).fetchone()
     assert count == (2,)
+
+
+# -- Milestone 6: incidents and quality_events.details --
+
+
+def _components() -> IncidentScoreComponents:
+    return IncidentScoreComponents(
+        severity_score=70.0,
+        criticality_score=70.0,
+        deviation_score=50.0,
+        frequency_score=10.0,
+        confidence_score=60.0,
+    )
+
+
+def _run_with_incident(dataset: Dataset | None = None) -> ValidationRun:
+    """Same shape as ``_run()`` above, but with ``details`` set on the
+    ThresholdResult and one Incident attached to its one non-PASS event --
+    exactly the case ``_run()`` (Milestones 0-4) never exercised."""
+    started = datetime(2026, 8, 26, 12, 0, 0, tzinfo=UTC)
+    finished = datetime(2026, 8, 26, 12, 0, 1, tzinfo=UTC)
+    metric = Metric(metric_name="row_count", value=12.0, computed_at=finished)
+    threshold_result = ThresholdResult(
+        status=Status.FAIL,
+        expected="row_count >= 1000",
+        strategy_type="static",
+        details='{"method": "static", "actual": 12.0, "min": 1000, "max": null}',
+    )
+    event = QualityEvent(
+        severity=Severity.WARNING, blocking=True, metric=metric, threshold_result=threshold_result
+    )
+    incident = Incident(
+        quality_event=event,
+        priority=IncidentPriority.HIGH,
+        score=61.0,
+        components=_components(),
+        reasons=("Dataset criticality: HIGH", "Validation severity: WARNING"),
+    )
+    return ValidationRun(
+        dataset=dataset or _dataset(),
+        policy_version="unversioned",
+        started_at=started,
+        finished_at=finished,
+        status=Status.FAIL,
+        quality_events=(event,),
+        incidents=(incident,),
+    )
+
+
+def test_persist_writes_the_quality_event_details_column(tmp_path: Path) -> None:
+    conn = _conn(tmp_path)
+    run_id = persist_validation_run(conn, _run_with_incident())
+
+    details = conn.execute(
+        "SELECT details FROM quality_events WHERE validation_run_id = ?", [run_id]
+    ).fetchone()
+    assert details == ('{"method": "static", "actual": 12.0, "min": 1000, "max": null}',)
+
+
+def test_persist_writes_a_null_details_when_the_threshold_result_has_none(
+    tmp_path: Path,
+) -> None:
+    """Regression check: _run() (Milestones 0-4's own fixture, unmodified
+    above) never sets ThresholdResult.details -- confirms the new column
+    doesn't break the pre-existing no-details path."""
+    conn = _conn(tmp_path)
+    run_id = persist_validation_run(conn, _run())
+
+    details = conn.execute(
+        "SELECT details FROM quality_events WHERE validation_run_id = ?", [run_id]
+    ).fetchone()
+    assert details == (None,)
+
+
+def test_persist_writes_one_incident_row_per_incident(tmp_path: Path) -> None:
+    conn = _conn(tmp_path)
+    run_id = persist_validation_run(conn, _run_with_incident())
+
+    rows = conn.execute(
+        "SELECT priority, score FROM incidents WHERE validation_run_id = ?", [run_id]
+    ).fetchall()
+    assert rows == [("high", 61.0)]
+
+
+def test_persist_writes_no_incident_rows_when_the_run_has_none(tmp_path: Path) -> None:
+    """_run() (Milestones 0-4) has a FAIL event but no Incident -- the
+    pre-Milestone-5 shape every existing call site still produces."""
+    conn = _conn(tmp_path)
+    run_id = persist_validation_run(conn, _run())
+
+    count = conn.execute(
+        "SELECT count(*) FROM incidents WHERE validation_run_id = ?", [run_id]
+    ).fetchone()
+    assert count == (0,)
+
+
+def test_persist_links_an_incident_to_its_own_quality_event_not_another(
+    tmp_path: Path,
+) -> None:
+    """With two non-PASS events on one run, each Incident's persisted
+    quality_event_id must point at the SAME event it was built from --
+    proves the identity-keyed lookup in mapping.to_rows (not a positional
+    guess) actually threads the right id through."""
+    conn = _conn(tmp_path)
+    started = datetime(2026, 8, 26, 12, 0, 0, tzinfo=UTC)
+    finished = datetime(2026, 8, 26, 12, 0, 1, tzinfo=UTC)
+
+    metric_a = Metric(metric_name="row_count", value=12.0, computed_at=finished)
+    result_a = ThresholdResult(
+        status=Status.FAIL, expected="row_count >= 1000", strategy_type="static"
+    )
+    event_a = QualityEvent(
+        severity=Severity.WARNING, blocking=True, metric=metric_a, threshold_result=result_a
+    )
+
+    metric_b = Metric(metric_name="null_rate", value=0.5, computed_at=finished)
+    result_b = ThresholdResult(
+        status=Status.FAIL, expected="null_rate <= 0.1", strategy_type="static"
+    )
+    event_b = QualityEvent(
+        severity=Severity.HIGH, blocking=True, metric=metric_b, threshold_result=result_b
+    )
+
+    incident_b = Incident(
+        quality_event=event_b,
+        priority=IncidentPriority.CRITICAL,
+        score=90.0,
+        components=_components(),
+        reasons=("Dataset criticality: HIGH",),
+    )
+    run = ValidationRun(
+        dataset=_dataset(),
+        policy_version="unversioned",
+        started_at=started,
+        finished_at=finished,
+        status=Status.FAIL,
+        quality_events=(event_a, event_b),
+        incidents=(incident_b,),
+    )
+
+    run_id = persist_validation_run(conn, run)
+
+    linked = conn.execute(
+        """
+        SELECT qe.status, m.metric_name
+        FROM incidents i
+        JOIN quality_events qe ON qe.id = i.quality_event_id
+        JOIN metrics m ON m.id = qe.metric_id
+        WHERE i.validation_run_id = ?
+        """,
+        [run_id],
+    ).fetchone()
+    assert linked == ("fail", "null_rate")  # event_b, not event_a
