@@ -113,11 +113,19 @@ uv run streamlit run dashboard/app.py
 
 ### Explore every feature
 
-Four more example datasets sit next to `orders`: a clean one, one with a non-blocking failure, one comparing all four adaptive threshold strategies, and a Postgres table. Prepare them once, then validate each:
+Seven more example datasets sit next to `orders`, covering every rule, strategy and source type (CSV, Parquet, Postgres, MySQL, MongoDB). Prepare them once, then validate each:
 
 ```bash
-uv run python -m examples.setup     # backfills history + loads the Postgres example
-uv run sentinel validate signups    # customers, products, orders, signups, events
+uv sync --all-groups --all-extras && export MYSQL_PASSWORD=sentinel
+uv run python -m examples.setup     # backfills history + loads the database examples
+uv run sentinel validate signups    # customers, products, orders, signups, events,
+                                    # shipments, reviews, clickstream
+```
+
+To see how adaptive thresholds behave over weeks, replay 8 weeks of daily loads with injected anomalies through the real pipeline and get a per-strategy scorecard:
+
+```bash
+uv run python -m examples.simulate  # --source postgres|mysql|mongodb, --days, --seed
 ```
 
 The [guided tour](docs/examples.md) explains what each one shows, the expected result, and things to try.
@@ -207,7 +215,7 @@ src/sentinel/
   registration.py   Registers every built-in plug-in
 dashboard/app.py    Streamlit dashboard
 datasets/ policies/ data/   Example datasets, policies and sample data (docs/examples.md)
-examples/           Setup for the examples (history backfill, Postgres table)
+examples/           Example setup (history backfill, database tables) and the threshold simulator
 demo/               Self-contained guided demo
 experiments/        Reproducible threshold-strategy evaluation
 tests/unit/         Mirrors src/sentinel/

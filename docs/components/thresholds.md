@@ -114,6 +114,10 @@ Because `InsufficientHistoryError` aborts the run before persistence, a **new** 
 2. Run it until it has at least `min_history` runs (for `seasonal`, `min_history` of *each* weekday).
 3. Switch the rule to the adaptive strategy, **keeping the same rule `name`**. History is keyed by name, not by strategy, so it carries over.
 
+### Choosing and tuning a strategy
+
+`python -m examples.simulate` replays weeks of daily loads, with anomalies injected on known days, through the real pipeline (following the cold-start steps above), and prints a scorecard of caught, missed and false alarms for every rule in `policies/simulated_orders.yaml`. Edit the policy, rerun, and compare. See the [examples guide](../examples.md#10-testing-adaptive-thresholds-with-the-simulator).
+
 ---
 
 ## Adding a strategy

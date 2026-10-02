@@ -1,0 +1,9 @@
+# A Parquet file written by `uv run python -m examples.setup`. Globs and
+# s3:// paths work the same way, e.g. s3://lake/clickstream/*.parquet.
+id: clickstream
+name: clickstream
+source_type: duckdb
+environment: local
+owner: analytics-team
+criticality: medium
+config_reference: data/generated/clickstream.parquet

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import ClassVar
 
+from sentinel import clock
 from sentinel.datasources.base import DataSource
 from sentinel.domain import Metric, RuleConfig
 from sentinel.rules.base import RuleConfigError
@@ -33,11 +33,11 @@ class FreshnessRule:
         freshness_minutes = (
             float("inf")
             if latest is None
-            else (datetime.now(UTC) - latest).total_seconds() / 60.0
+            else (clock.now() - latest).total_seconds() / 60.0
         )
 
         return Metric(
             metric_name=config.name,
             value=freshness_minutes,
-            computed_at=datetime.now(UTC),
+            computed_at=clock.now(),
         )

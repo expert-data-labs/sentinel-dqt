@@ -186,3 +186,10 @@ Each entry follows the same structure: **Decision**, **Why**, **Alternatives con
 - **Alternatives considered.** SQLAlchemy dialects for every engine (another abstraction layer, and Snowflake/BigQuery dialects are third-party). One package per adapter (more release overhead than five small modules justify).
 - **Trade-off.** A SQL engine with unusual semantics must override the base methods.
 - **Revisit when.** An adapter needs pushdown beyond these aggregates (sampling, partition filters); add it to the Protocol as a new capability.
+
+### D27. Time comes from `sentinel.clock`, which can be pinned
+
+- **Decision.** Rules and the orchestrator call `clock.now()` instead of `datetime.now()`. `clock.frozen_at(moment)` pins it for a block, using a context variable.
+- **Why.** Metric timestamps drive adaptive history (the seasonal strategy buckets by weekday) and freshness is measured against "now", so replaying or backfilling past days needs a controllable clock. A context variable keeps a pinned time local to one thread or request.
+- **Alternatives considered.** Passing `now` through every `Rule.compute()` (a Protocol change for every rule). Patching `datetime` in tests (doesn't work for replays, and is fragile).
+- **Used by.** The simulator (`examples/simulate.py`); later, backfilling past partitions.

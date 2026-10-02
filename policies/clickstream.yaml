@@ -1,0 +1,33 @@
+# Parquet stores exact column types, so the schema check needs no guessing
+# (compare data/orders.csv, where DuckDB infers types from text).
+dataset: clickstream
+rules:
+  - name: row_count
+    type: row_count
+    threshold:
+      strategy: static
+      min: 1000
+  - name: event_id_unique
+    type: uniqueness
+    column: event_id
+    severity: critical
+    threshold:
+      strategy: static
+      max: 0
+  - name: session_id_not_null
+    type: null_rate
+    column: session_id
+    threshold:
+      strategy: static
+      max: 0
+  - name: clickstream_schema
+    type: schema
+    expected_schema:
+      event_id: integer
+      session_id: string
+      page: string
+      duration_ms: integer
+      occurred_at: timestamp
+    threshold:
+      strategy: static
+      max: 0

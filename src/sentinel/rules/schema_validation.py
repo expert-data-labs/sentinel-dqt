@@ -7,9 +7,9 @@ can judge it. ``Metric.details`` lists which columns differ, as JSON.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 from typing import ClassVar
 
+from sentinel import clock
 from sentinel.datasources.base import DataSource
 from sentinel.domain import Metric, RuleConfig
 from sentinel.rules.base import RuleConfigError
@@ -62,6 +62,6 @@ class SchemaValidationRule:
         return Metric(
             metric_name=config.name,
             value=float(difference_count),
-            computed_at=datetime.now(UTC),
+            computed_at=clock.now(),
             details=details,
         )

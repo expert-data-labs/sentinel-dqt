@@ -8,8 +8,8 @@ plain class (not a Protocol) because there is only one implementation.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import UTC, datetime
 
+from sentinel import clock
 from sentinel.datasources import DataSource
 from sentinel.domain import Dataset, Incident, Policy, QualityEvent, Status, ValidationRun
 from sentinel.prioritization import (
@@ -57,7 +57,7 @@ class ValidationOrchestrator:
         self._prioritizer = prioritizer if prioritizer is not None else IncidentPrioritizer()
 
     def run(self, dataset: Dataset, policy: Policy, source: DataSource) -> ValidationRun:
-        started_at = datetime.now(UTC)
+        started_at = clock.now()
 
         events: list[QualityEvent] = []
         incidents: list[Incident] = []
@@ -85,7 +85,7 @@ class ValidationOrchestrator:
                 )
                 incidents.append(self._prioritizer.prioritize(dataset, event, failure_outcomes))
 
-        finished_at = datetime.now(UTC)
+        finished_at = clock.now()
 
         return ValidationRun(
             dataset=dataset,

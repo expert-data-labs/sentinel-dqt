@@ -1,0 +1,73 @@
+# Policy replayed by the simulator: `uv run python -m examples.simulate`.
+# Every rule is non-blocking so all strategies are evaluated every day and
+# can be compared. Edit thresholds here, rerun the simulator, and compare
+# scorecards. (Rule names are the history keys: renaming a rule starts its
+# history from scratch.)
+dataset: simulated_orders
+rules:
+  # --- daily volume (row count) ---------------------------------------------
+  - name: volume_static
+    type: row_count
+    blocking: false
+    threshold:
+      strategy: static
+      min: 600                  # a typical hand-picked floor
+
+  - name: volume_pct_of_mean
+    type: row_count
+    blocking: false
+    threshold:
+      strategy: percentage_deviation
+      max_deviation: 0.25
+      min_history: 7
+
+  - name: volume_statistical
+    type: row_count
+    blocking: false
+    threshold:
+      strategy: statistical
+      n_sigma: 3
+      min_history: 7
+
+  - name: volume_median_mad
+    type: row_count
+    blocking: false
+    threshold:
+      strategy: median_mad
+      n_mad: 3
+      min_history: 7
+
+  - name: volume_seasonal
+    type: row_count
+    blocking: false
+    threshold:
+      strategy: seasonal
+      n_sigma: 3
+      min_history: 2
+
+  # --- missing customer ids (null rate) ---------------------------------------
+  - name: nulls_static
+    type: null_rate
+    column: customer_id
+    blocking: false
+    threshold:
+      strategy: static
+      max: 0.02
+
+  - name: nulls_statistical
+    type: null_rate
+    column: customer_id
+    blocking: false
+    threshold:
+      strategy: statistical
+      n_sigma: 3
+      min_history: 7
+
+  - name: nulls_median_mad
+    type: null_rate
+    column: customer_id
+    blocking: false
+    threshold:
+      strategy: median_mad
+      n_mad: 3
+      min_history: 7

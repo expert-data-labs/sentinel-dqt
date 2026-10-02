@@ -7,9 +7,9 @@ Nulls are ignored (that's what null_rate checks):
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import ClassVar
 
+from sentinel import clock
 from sentinel.datasources.base import DataSource
 from sentinel.domain import Metric, RuleConfig
 from sentinel.rules.base import RuleConfigError
@@ -34,5 +34,5 @@ class UniquenessRule:
         return Metric(
             metric_name=config.name,
             value=float(duplicate_count),
-            computed_at=datetime.now(UTC),
+            computed_at=clock.now(),
         )

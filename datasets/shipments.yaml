@@ -1,0 +1,10 @@
+# A MySQL table, loaded by `uv run python -m examples.setup`. The password
+# comes from the environment, never this file:
+#   export MYSQL_PASSWORD=sentinel        (the docker compose default)
+id: shipments
+name: shipments
+source_type: mysql
+environment: local
+owner: logistics-team
+criticality: high
+config_reference: mysql://sentinel:${MYSQL_PASSWORD}@localhost:3306/sentinel?table=shipments

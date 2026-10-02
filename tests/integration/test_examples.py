@@ -12,7 +12,13 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 import pytest
-from examples.setup import load_events_table, seed_signups_history
+from examples.setup import (
+    load_events_table,
+    load_reviews_collection,
+    load_shipments_table,
+    seed_signups_history,
+    write_clickstream_parquet,
+)
 from typer.testing import CliRunner
 
 from sentinel.cli.main import app
@@ -86,3 +92,57 @@ def test_events_on_postgres_passes_every_rule(store: StoreConnection) -> None:
 
     failed = [e.rule_name for e in run.quality_events if e.status is not Status.PASS]
     assert failed == []
+
+
+def _validate(name: str, store: StoreConnection, config_reference: str) -> dict[str, Status]:
+    register_all()
+    dataset = load_dataset(REPO_ROOT / "datasets" / f"{name}.yaml")
+    dataset = dataset.model_copy(update={"config_reference": config_reference})
+    policy = load_policy(REPO_ROOT / "policies" / f"{name}.yaml")
+    source = get_data_source(dataset.source_type, dataset.config_reference)
+    run, _ = validate_and_record(store, dataset, policy, source)
+    return {e.rule_name: e.status for e in run.quality_events}
+
+
+def _unavailable(backend: str, exc: Exception) -> None:
+    if backend in os.environ.get("SENTINEL_REQUIRE_BACKENDS", ""):
+        raise exc
+    pytest.skip(f"{backend} unavailable: {type(exc).__name__}")
+
+
+def test_clickstream_parquet_passes_every_rule(store: StoreConnection, tmp_path: Path) -> None:
+    path = tmp_path / "clickstream.parquet"
+    write_clickstream_parquet(path)
+
+    statuses = _validate("clickstream", store, str(path))
+
+    assert set(statuses.values()) == {Status.PASS}
+
+
+def test_shipments_on_mysql_catches_the_double_shipped_orders(
+    store: StoreConnection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MYSQL_PASSWORD", "sentinel")
+    try:
+        load_shipments_table()
+    except Exception as exc:  # noqa: BLE001
+        _unavailable("mysql", exc)
+    reference = load_dataset(REPO_ROOT / "datasets" / "shipments.yaml").config_reference
+    assert reference is not None and "${MYSQL_PASSWORD}" in reference
+
+    statuses = _validate("shipments", store, reference)
+
+    assert statuses.pop("one_shipment_per_order") is Status.FAIL
+    assert set(statuses.values()) == {Status.PASS}
+
+
+def test_reviews_on_mongodb_treats_missing_fields_as_null(store: StoreConnection) -> None:
+    url = "mongodb://localhost:27017/sentinel_examples_test"
+    try:
+        load_reviews_collection(url)
+    except Exception as exc:  # noqa: BLE001
+        _unavailable("mongodb", exc)
+
+    statuses = _validate("reviews", store, f"{url}?collection=reviews")
+
+    assert set(statuses.values()) == {Status.PASS}

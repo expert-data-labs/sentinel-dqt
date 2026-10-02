@@ -5,9 +5,9 @@ An empty dataset reports 0.0 instead of dividing by zero.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import ClassVar
 
+from sentinel import clock
 from sentinel.datasources.base import DataSource
 from sentinel.domain import Metric, RuleConfig
 from sentinel.rules.base import RuleConfigError
@@ -32,5 +32,5 @@ class NullRateRule:
         return Metric(
             metric_name=config.name,
             value=rate,
-            computed_at=datetime.now(UTC),
+            computed_at=clock.now(),
         )

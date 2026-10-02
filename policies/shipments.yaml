@@ -1,0 +1,42 @@
+# MySQL catches a real problem: two orders were shipped twice, so the
+# blocking uniqueness rule fails (exit 2). tinyint(1) `insured` shows up as
+# boolean in the schema check.
+dataset: shipments
+rules:
+  - name: row_count
+    type: row_count
+    threshold:
+      strategy: static
+      min: 100
+  - name: one_shipment_per_order
+    type: uniqueness
+    column: order_id
+    severity: critical
+    threshold:
+      strategy: static
+      max: 0
+  - name: carrier_not_null
+    type: null_rate
+    column: carrier
+    severity: high
+    threshold:
+      strategy: static
+      max: 0.05
+  - name: shipments_freshness
+    type: freshness
+    column: shipped_at
+    threshold:
+      strategy: static
+      max: 120
+  - name: shipments_schema
+    type: schema
+    expected_schema:
+      shipment_id: integer
+      order_id: integer
+      carrier: string
+      weight_kg: decimal
+      insured: boolean
+      shipped_at: timestamp
+    threshold:
+      strategy: static
+      max: 0

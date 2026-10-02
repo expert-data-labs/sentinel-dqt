@@ -1,0 +1,35 @@
+# Document data. About 20% of reviews have no `comment` field at all; a
+# missing field counts as null. `author.country` reaches into a sub-document.
+dataset: reviews
+rules:
+  - name: row_count
+    type: row_count
+    threshold:
+      strategy: static
+      min: 50
+  - name: review_id_unique
+    type: uniqueness
+    column: review_id
+    severity: high
+    threshold:
+      strategy: static
+      max: 0
+  - name: comment_present
+    type: null_rate
+    column: comment
+    severity: info
+    threshold:
+      strategy: static
+      max: 0.30                 # most reviews should have text
+  - name: author_country_known
+    type: null_rate
+    column: author.country      # dotted path into the author sub-document
+    threshold:
+      strategy: static
+      max: 0.05
+  - name: reviews_freshness
+    type: freshness
+    column: created_at
+    threshold:
+      strategy: static
+      max: 1440                 # a review within the last day

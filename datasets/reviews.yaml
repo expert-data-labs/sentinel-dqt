@@ -1,0 +1,8 @@
+# A MongoDB collection, loaded by `uv run python -m examples.setup`.
+id: reviews
+name: reviews
+source_type: mongodb
+environment: local
+owner: catalog-team
+criticality: medium
+config_reference: mongodb://localhost:27017/sentinel_examples?collection=reviews
