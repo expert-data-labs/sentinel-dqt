@@ -1,26 +1,23 @@
-"""DuckDB-backed HistoricalMetricsSource.
+"""Postgres-backed HistoricalMetricsSource.
 
 Reads past metric values from the ``metrics`` table. Lives here so
-sentinel.thresholds never imports duckdb.
+sentinel.thresholds never imports a database driver.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 
-import duckdb
-
 from sentinel.domain import Metric
+from sentinel.persistence.engine import StoreConnection
 
 _DEFAULT_LIMIT = 90
 
 
-class DuckDBHistoricalMetricsSource:
+class PostgresHistoricalMetricsSource:
     """Past Metrics from the store, newest first, capped at ``limit`` rows."""
 
-    def __init__(
-        self, conn: duckdb.DuckDBPyConnection, limit: int = _DEFAULT_LIMIT
-    ) -> None:
+    def __init__(self, conn: StoreConnection, limit: int = _DEFAULT_LIMIT) -> None:
         self._conn = conn
         self._limit = limit
 
@@ -30,9 +27,9 @@ class DuckDBHistoricalMetricsSource:
             SELECT m.value, m.computed_at
             FROM metrics m
             JOIN validation_runs vr ON vr.id = m.validation_run_id
-            WHERE vr.dataset_id = ? AND m.metric_name = ?
+            WHERE vr.dataset_id = %s AND m.metric_name = %s
             ORDER BY m.computed_at DESC
-            LIMIT ?
+            LIMIT %s
             """,
             [dataset_id, metric_name, self._limit],
         ).fetchall()

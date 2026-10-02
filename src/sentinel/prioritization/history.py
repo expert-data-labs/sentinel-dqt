@@ -1,7 +1,7 @@
 """FailureHistorySource: past pass/fail outcomes for one rule.
 
 Separate from HistoricalMetricsSource, which returns values without statuses.
-The DuckDB implementation lives in sentinel.persistence.
+The Postgres implementation lives in sentinel.persistence.
 """
 
 from __future__ import annotations

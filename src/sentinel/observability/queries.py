@@ -13,8 +13,6 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta
 from enum import StrEnum
 
-import duckdb
-
 from sentinel.domain import IncidentPriority, Status
 from sentinel.observability.health import (
     classify_recurrence,
@@ -29,6 +27,7 @@ from sentinel.observability.views import (
     QualityHistoryEntry,
     RecurringFailureView,
 )
+from sentinel.persistence.engine import StoreConnection
 
 
 class TimeWindow(StrEnum):
@@ -51,10 +50,10 @@ def _cutoff(window: TimeWindow, as_of: datetime) -> datetime:
 
 
 def _dataset_clause(dataset_id: str | None) -> tuple[str, list[object]]:
-    """Optional ``AND vr.dataset_id = ?`` filter and its parameter."""
+    """Optional ``AND vr.dataset_id = %s`` filter and its parameter."""
     if dataset_id is None:
         return "", []
-    return " AND vr.dataset_id = ?", [dataset_id]
+    return " AND vr.dataset_id = %s", [dataset_id]
 
 
 def _top_reason(reasons_json: str) -> str | None:
@@ -97,7 +96,7 @@ def _build_dataset_health_view(
 class ObservabilityQueryService:
     """Builds the dashboard views from the store. Holds only a connection."""
 
-    def __init__(self, conn: duckdb.DuckDBPyConnection) -> None:
+    def __init__(self, conn: StoreConnection) -> None:
         self._conn = conn
 
     # -- shared helpers, bounded-query lookups keyed by validation_run_id --
@@ -107,11 +106,9 @@ class ObservabilityQueryService:
     ) -> dict[uuid.UUID, list[IncidentPriority]]:
         if not run_ids:
             return {}
-        placeholders = ",".join("?" for _ in run_ids)
         rows = self._conn.execute(
-            f"SELECT validation_run_id, priority FROM incidents "
-            f"WHERE validation_run_id IN ({placeholders})",
-            list(run_ids),
+            "SELECT validation_run_id, priority FROM incidents WHERE validation_run_id = ANY(%s)",
+            (list(run_ids),),
         ).fetchall()
         result: dict[uuid.UUID, list[IncidentPriority]] = {}
         for run_id, priority in rows:
@@ -121,12 +118,11 @@ class ObservabilityQueryService:
     def _failed_counts_for_runs(self, run_ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, int]:
         if not run_ids:
             return {}
-        placeholders = ",".join("?" for _ in run_ids)
         rows = self._conn.execute(
-            f"SELECT validation_run_id, COUNT(*) FROM quality_events "
-            f"WHERE validation_run_id IN ({placeholders}) AND status <> ? "
-            f"GROUP BY validation_run_id",
-            [*run_ids, Status.PASS.value],
+            "SELECT validation_run_id, COUNT(*) FROM quality_events "
+            "WHERE validation_run_id = ANY(%s) AND status <> %s "
+            "GROUP BY validation_run_id",
+            (list(run_ids), Status.PASS.value),
         ).fetchall()
         return dict(rows)
 
@@ -139,7 +135,7 @@ class ObservabilityQueryService:
         dataset).
         """
         dataset_row = self._conn.execute(
-            "SELECT id, name FROM datasets WHERE id = ?", [dataset_id]
+            "SELECT id, name FROM datasets WHERE id = %s", [dataset_id]
         ).fetchone()
         if dataset_row is None:
             raise ValueError(f"No registered dataset with id {dataset_id!r}")
@@ -149,7 +145,7 @@ class ObservabilityQueryService:
             """
             SELECT id, started_at, status
             FROM validation_runs
-            WHERE dataset_id = ?
+            WHERE dataset_id = %s
             ORDER BY started_at DESC
             LIMIT 1
             """,
@@ -215,10 +211,10 @@ class ObservabilityQueryService:
             """
             SELECT vr.id, vr.started_at, vr.status,
                    COUNT(*) AS rules_evaluated,
-                   SUM(CASE WHEN qe.status <> ? THEN 1 ELSE 0 END) AS rules_failed
+                   COUNT(*) FILTER (WHERE qe.status <> %s) AS rules_failed
             FROM validation_runs vr
             JOIN quality_events qe ON qe.validation_run_id = vr.id
-            WHERE vr.dataset_id = ? AND vr.started_at >= ?
+            WHERE vr.dataset_id = %s AND vr.started_at >= %s
             GROUP BY vr.id, vr.started_at, vr.status
             ORDER BY vr.started_at DESC
             """,
@@ -237,8 +233,7 @@ class ObservabilityQueryService:
                 overall_status=status,
                 highest_incident_priority=(
                     priority.value
-                    if (priority := highest_priority(priorities_by_run.get(run_id, [])))
-                    is not None
+                    if (priority := highest_priority(priorities_by_run.get(run_id, []))) is not None
                     else None
                 ),
             )
@@ -252,7 +247,7 @@ class ObservabilityQueryService:
             SELECT DISTINCT m.metric_name
             FROM metrics m
             JOIN validation_runs vr ON vr.id = m.validation_run_id
-            WHERE vr.dataset_id = ?
+            WHERE vr.dataset_id = %s
             ORDER BY m.metric_name
             """,
             [dataset_id],
@@ -271,7 +266,7 @@ class ObservabilityQueryService:
             FROM metrics m
             JOIN validation_runs vr ON vr.id = m.validation_run_id
             LEFT JOIN quality_events qe ON qe.metric_id = m.id
-            WHERE vr.dataset_id = ? AND m.metric_name = ? AND m.computed_at >= ?
+            WHERE vr.dataset_id = %s AND m.metric_name = %s AND m.computed_at >= %s
             ORDER BY m.computed_at ASC
             """,
             [dataset_id, metric_name, cutoff],
@@ -296,9 +291,9 @@ class ObservabilityQueryService:
             FROM quality_events qe
             JOIN metrics m ON m.id = qe.metric_id
             JOIN validation_runs vr ON vr.id = qe.validation_run_id
-            WHERE qe.status <> ? AND m.computed_at >= ?{clause}
+            WHERE qe.status <> %s AND m.computed_at >= %s{clause}
             GROUP BY vr.dataset_id, m.metric_name
-            ORDER BY failure_count DESC
+            ORDER BY failure_count DESC, vr.dataset_id, m.metric_name
             """,
             [Status.PASS.value, cutoff, *clause_params],
         ).fetchall()
@@ -316,15 +311,13 @@ class ObservabilityQueryService:
                 JOIN metrics m ON m.id = qe.metric_id
                 JOIN validation_runs vr ON vr.id = qe.validation_run_id
                 JOIN incidents i ON i.quality_event_id = qe.id
-                WHERE qe.status <> ? AND m.computed_at >= ?{clause}
+                WHERE qe.status <> %s AND m.computed_at >= %s{clause}
             ) ranked
             WHERE rn = 1
             """,
             [Status.PASS.value, cutoff, *clause_params],
         ).fetchall()
-        current_priority = {
-            (row[0], row[1]): row[2] for row in latest_priority_rows
-        }
+        current_priority = {(row[0], row[1]): row[2] for row in latest_priority_rows}
 
         return [
             FailedRuleView(
@@ -348,16 +341,16 @@ class ObservabilityQueryService:
         rule_name: str | None = None,
     ) -> list[IncidentHistoryEntry]:
         cutoff = _cutoff(window, as_of)
-        clauses = ["m.computed_at >= ?"]
+        clauses = ["m.computed_at >= %s"]
         params: list[object] = [cutoff]
         if dataset_id is not None:
-            clauses.append("vr.dataset_id = ?")
+            clauses.append("vr.dataset_id = %s")
             params.append(dataset_id)
         if priority is not None:
-            clauses.append("i.priority = ?")
+            clauses.append("i.priority = %s")
             params.append(priority.value)
         if rule_name is not None:
-            clauses.append("m.metric_name = ?")
+            clauses.append("m.metric_name = %s")
             params.append(rule_name)
         where = " AND ".join(clauses)
 
@@ -403,7 +396,7 @@ class ObservabilityQueryService:
             FROM quality_events qe
             JOIN metrics m ON m.id = qe.metric_id
             JOIN validation_runs vr ON vr.id = qe.validation_run_id
-            WHERE qe.status <> ? AND m.computed_at >= ?{clause}
+            WHERE qe.status <> %s AND m.computed_at >= %s{clause}
             GROUP BY vr.dataset_id, m.metric_name
             """,
             [Status.PASS.value, cutoff, *clause_params],

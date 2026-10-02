@@ -4,26 +4,35 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import duckdb
-
-from sentinel.persistence.engine import get_connection
-from sentinel.persistence.schema import ensure_schema
+from sentinel.persistence.engine import StoreConnection, connect
+from sentinel.persistence.migrate import current_revision, head_revision
 from sentinel.registration import register_all
+
+
+class StoreNotReadyError(Exception):
+    """The store's schema is missing or not at the version this code expects."""
 
 
 @dataclass(frozen=True)
 class AppContext:
-    """Shared CLI state: a store connection with its schema in place."""
+    """Shared CLI state: a store connection whose schema is up to date."""
 
-    conn: duckdb.DuckDBPyConnection
+    conn: StoreConnection
 
 
 def build_context() -> AppContext:
-    """Register all implementations, open the store and create its schema.
+    """Register all implementations and open the store.
 
-    Idempotent; each command calls it once.
+    Raises StoreNotReadyError if migrations haven't been applied. The CLI
+    never changes the schema itself; run ``sentinel db upgrade`` once per deploy.
     """
     register_all()
-    conn = get_connection()
-    ensure_schema(conn)
+    conn = connect()
+    current, head = current_revision(conn), head_revision()
+    if current != head:
+        conn.close()
+        raise StoreNotReadyError(
+            f"Store schema is at revision {current or 'none'}, expected {head}. "
+            "Run `sentinel db upgrade`."
+        )
     return AppContext(conn=conn)

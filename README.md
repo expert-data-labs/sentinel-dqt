@@ -38,18 +38,20 @@ Measurements are stored separately from pass/fail verdicts. That is what makes a
   - `seasonal` (per day of week)
 - **Incident prioritization:** a deterministic, explainable score from severity, dataset criticality, deviation, failure frequency and anomaly confidence, bucketed into INFO, WARNING, HIGH or CRITICAL
 - **Blocking-aware exit codes,** so a failure on a non-blocking rule is recorded without stopping the pipeline
-- **Run history** in an embedded DuckDB store, with `sentinel history` and a read-only Streamlit dashboard
+- **Run history** in a shared PostgreSQL store, safe for simultaneous runs from many teams and pipelines, with versioned migrations, `sentinel history` and a read-only Streamlit dashboard
 - **Extensible:** a new rule, strategy or data source is a new class plus one registration line, with no changes to existing code
 
 ---
 
 ## Quick start
 
-Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
+Requires Python 3.11+, [uv](https://docs.astral.sh/uv/) and Docker (for the local Postgres store).
 
 ```bash
 git clone <this repo> && cd sentinel
 uv sync
+docker compose up -d            # local Postgres
+uv run sentinel db upgrade      # create the store's schema (once)
 uv run sentinel validate orders
 ```
 
@@ -164,7 +166,7 @@ Sentinel is a single Python package with strict, inward-pointing dependencies:
 - **`domain/`:** plain data, no dependencies. *Definitions* (Policy, RuleConfig, ThresholdConfig, Dataset) are kept separate from immutable *facts* (Metric, ThresholdResult, QualityEvent, ValidationRun, Incident).
 - **`rules/`, `thresholds/`, `datasources/`:** pluggable `Protocol` interfaces, each with a decorator-based registry keyed by the string used in YAML.
 - **`orchestration/`, `prioritization/`:** pure coordination logic. History arrives through injected interfaces, so the core runs and is tested without any database.
-- **`persistence/`, `observability/`:** the DuckDB history store and the read-only query layer.
+- **`persistence/`, `observability/`, `validation_service.py`:** the Postgres store (migrations, per-dataset run locking, history reads) and the read-only query layer.
 - **`cli/`, `dashboard/`:** the edges. `cli/main.py` is the one place where concrete implementations are wired together.
 
 Read more:
@@ -187,16 +189,17 @@ src/sentinel/
   thresholds/       ThresholdStrategy protocol, registry, 5 strategies, history interface
   orchestration/    ValidationOrchestrator
   prioritization/   IncidentPrioritizer and scoring model
-  persistence/      DuckDB schema, writer, history readers
+  persistence/      Postgres connections, Alembic migrations, run lock, writer, history readers
   observability/    Read-only query service and read models
-  cli/              `sentinel validate`, `sentinel history`
+  validation_service.py  Lock, run, persist: the one path for recording a validation
+  cli/              `sentinel validate`, `sentinel history`, `sentinel db`
   registration.py   Registers every built-in plug-in
 dashboard/app.py    Streamlit dashboard
 datasets/ policies/ data/   Example dataset, policy and sample data
 demo/               Self-contained guided demo
 experiments/        Reproducible threshold-strategy evaluation
 tests/unit/         Mirrors src/sentinel/
-tests/integration/  CLI, end-to-end, DuckDB/Postgres parity, observability
+tests/integration/  CLI, end-to-end, concurrent runs, DuckDB/Postgres parity, observability
 docs/               Architecture, component reference, experiment results
 ```
 
@@ -215,13 +218,14 @@ CI (`.github/workflows/ci.yml`) runs lint, strict type checking and the full tes
 
 ### Postgres
 
-Postgres adapter tests need a running database. They skip when none is reachable.
+The store tests and the Postgres adapter tests need a running database. They create and use a separate `sentinel_test` database, and skip when no server is reachable (CI makes them fail instead).
 
 ```bash
 docker compose up -d
-export SENTINEL_TEST_POSTGRES_DSN=postgresql://sentinel:sentinel@localhost:5432/sentinel
 uv run pytest
 ```
+
+Schema changes are Alembic migrations in `src/sentinel/persistence/migrations/versions/`. Create one with `uv run alembic revision -m "..."` and apply with `uv run sentinel db upgrade`.
 
 To validate a Postgres table, set the dataset's `source_type: postgres` and `config_reference: postgresql://user:pass@host:5432/db?table=orders`.
 
@@ -229,7 +233,7 @@ To validate a Postgres table, set the dataset's `source_type: postgres` and `con
 
 ```bash
 docker build -t sentinel .
-docker run --rm sentinel           # runs the test suite in a clean environment
+docker run --rm --network host sentinel   # runs the test suite; needs `docker compose up -d` for the store tests
 ```
 
 ### Regenerating the threshold evaluation
@@ -244,17 +248,19 @@ This rewrites [`docs/experiments/threshold-strategy-evaluation.md`](docs/experim
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SENTINEL_DB_PATH` | `sentinel.duckdb` | History store |
+| `SENTINEL_DATABASE_URL` | `postgresql://sentinel:sentinel@localhost:5432/sentinel` | Sentinel's Postgres store |
 | `SENTINEL_DATASETS_DIR` | `datasets` | Dataset YAML directory |
 | `SENTINEL_POLICIES_DIR` | `policies` | Policy YAML directory |
-| `SENTINEL_TEST_POSTGRES_DSN` | unset | Postgres used by the parity tests |
+| `SENTINEL_TEST_POSTGRES_DSN` | compose Postgres | Server used by the tests (they create `sentinel_test`) |
 
 ---
 
 ## Known limitations
 
 - **Adaptive thresholds need a warm-up.** A new rule configured directly with an adaptive strategy fails the run with `InsufficientHistoryError` until it has history. Start the rule on `static` and switch once enough runs exist; history is keyed by rule name, so it carries over. See [Thresholds: cold start](docs/components/thresholds.md#cold-start).
-- **One writer per history store.** DuckDB allows one process per database file. Do not run concurrent `validate` processes against the same `SENTINEL_DB_PATH`, and close the dashboard before validating against the store it has open.
+- **Runs of the same dataset queue up.** Simultaneous runs of one dataset are serialized so each sees the previous run's history; different datasets run in parallel.
+- **No per-team isolation.** All teams share one store; a dataset's `owner` records its team, but nothing restricts who can read or write it.
+- **No HTTP API yet.** Validation runs from the CLI; the store and run locking are ready for an API layer.
 - **Execution errors abort the whole run.** If one rule cannot execute, nothing from that run is persisted.
 - **No built-in WARN.** The built-in strategies return PASS or FAIL only.
 - **Policies are versioned by hand** through the optional `version:` field.

@@ -78,7 +78,7 @@ flowchart TB
 | Domain | `domain/` | Plain data. No behaviour, no I/O, no imports from elsewhere in Sentinel. |
 | Plug-ins | `rules/`, `thresholds/`, `datasources/` | Small interfaces (`typing.Protocol`) with several implementations, each selected by a string in YAML through a registry. |
 | Coordination | `orchestration/`, `prioritization/` | Pure logic that wires plug-ins together. Never imports a database driver for Sentinel's own store. |
-| Storage and read models | `persistence/`, `observability/` | DuckDB schema, writes, history reads, and the read-only query layer behind the dashboard. |
+| Storage and read models | `persistence/`, `observability/`, `validation_service.py` | Postgres migrations, writes, run locking, history reads, and the read-only query layer behind the dashboard. |
 | Edges | `cli/`, `dashboard/` | Turn files, a terminal and a browser into calls on the layers above. `cli/main.py` is the composition root. |
 
 ---
@@ -135,10 +135,11 @@ sequenceDiagram
 
     P->>CLI: sentinel validate orders
     CLI->>B: build_context()
-    B-->>CLI: register_all(), open sentinel.duckdb, ensure_schema()
+    B-->>CLI: register_all(), connect to Postgres, check migration revision
     CLI->>R: resolve_dataset / resolve_policy
     R-->>CLI: Dataset, Policy (validated)
     CLI->>DS: get_data_source(source_type, config_reference)
+    Note over CLI,W: validate_and_record(): the dataset's run lock is held from here until the write
     CLI->>O: run(dataset, policy, source)
     loop each rule in policy
         O->>Ru: compute(source, rule_config)
@@ -159,7 +160,7 @@ sequenceDiagram
     CLI-->>P: summary + exit code 0 / 1 / 2
 ```
 
-The orchestrator does no I/O of its own apart from the calls on its injected collaborators. Persistence happens *after* the run is complete, in the CLI, so a `ValidationRun` is fully assembled in memory before anything is written.
+The orchestrator does no I/O of its own apart from the calls on its injected collaborators. Persistence happens *after* the run is complete, in `validation_service.py`, so a `ValidationRun` is fully assembled in memory before anything is written.
 
 ### Quality failure vs. execution error
 

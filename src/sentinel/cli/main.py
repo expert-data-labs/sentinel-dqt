@@ -1,14 +1,17 @@
-"""Sentinel CLI: ``sentinel validate`` and ``sentinel history``.
+"""Sentinel CLI: ``validate``, ``history`` and ``db``.
 
 ``validate <dataset>`` loads the dataset and policy YAML, runs the
 orchestrator, saves the run and prints a summary (with incident priority
-for failed rules). ``history <dataset>`` lists recent runs.
+for failed rules). Runs of the same dataset are serialized across processes;
+different datasets run in parallel. ``history <dataset>`` lists recent runs.
+``db upgrade`` applies store migrations.
 
 Exit codes for ``validate`` respect non-blocking rules:
 
     0 - nothing failed or warned
     1 - a warning, but no blocking failure
     2 - a blocking rule failed
+    3 - the store isn't ready (run ``sentinel db upgrade``)
 """
 
 from __future__ import annotations
@@ -17,17 +20,28 @@ import uuid
 
 import typer
 
-from sentinel.cli.bootstrap import build_context
+from sentinel.cli.bootstrap import AppContext, StoreNotReadyError, build_context
 from sentinel.cli.resolution import resolve_dataset, resolve_policy
 from sentinel.datasources import get_data_source
 from sentinel.domain import Incident, QualityEvent, Status, ValidationRun
-from sentinel.orchestration import ValidationOrchestrator
-from sentinel.persistence.failure_history import DuckDBFailureHistorySource
-from sentinel.persistence.history import DuckDBHistoricalMetricsSource
+from sentinel.persistence import migrate
+from sentinel.persistence.engine import connect
 from sentinel.persistence.reader import RunSummary, list_recent_runs
-from sentinel.persistence.writer import persist_validation_run
+from sentinel.validation_service import validate_and_record
 
 app = typer.Typer(help="Sentinel: configurable data quality validation.")
+db_app = typer.Typer(help="Manage Sentinel's Postgres store.")
+app.add_typer(db_app, name="db")
+
+_EXIT_STORE_NOT_READY = 3
+
+
+def _context() -> AppContext:
+    try:
+        return build_context()
+    except StoreNotReadyError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=_EXIT_STORE_NOT_READY) from None
 
 
 def _has_blocking_failure(events: tuple[QualityEvent, ...]) -> bool:
@@ -86,8 +100,7 @@ def _print_summary(run: ValidationRun, run_id: uuid.UUID, exit_code: int) -> Non
 
 
 _DATASET_HELP = (
-    "Dataset name, e.g. 'orders' (matches datasets/<name>.yaml and "
-    "policies/<name>.yaml)."
+    "Dataset name, e.g. 'orders' (matches datasets/<name>.yaml and policies/<name>.yaml)."
 )
 
 
@@ -96,20 +109,14 @@ def validate(
     dataset: str = typer.Argument(..., help=_DATASET_HELP),
 ) -> None:
     """Run DATASET's policy, persist the result, and report a summary."""
-    context = build_context()
+    context = _context()
 
     resolved_dataset = resolve_dataset(dataset)
     policy = resolve_policy(dataset)
     source = get_data_source(resolved_dataset.source_type, resolved_dataset.config_reference)
 
-    history_source = DuckDBHistoricalMetricsSource(context.conn)
-    failure_history_source = DuckDBFailureHistorySource(context.conn)
-    orchestrator = ValidationOrchestrator(
-        history_source=history_source,
-        failure_history_source=failure_history_source,
-    )
-    run = orchestrator.run(resolved_dataset, policy, source)
-    run_id = persist_validation_run(context.conn, run)
+    with context.conn:
+        run, run_id = validate_and_record(context.conn, resolved_dataset, policy, source)
 
     exit_code = _exit_code(run)
     _print_summary(run, run_id, exit_code)
@@ -140,9 +147,25 @@ def history(
     limit: int = typer.Option(10, "--limit", help=_LIMIT_HELP),
 ) -> None:
     """Show DATASET's most recent recorded validation runs."""
-    context = build_context()
-    summaries = list_recent_runs(context.conn, dataset, limit)
+    context = _context()
+    with context.conn:
+        summaries = list_recent_runs(context.conn, dataset, limit)
     _print_history(dataset, summaries)
+
+
+@db_app.command("upgrade")
+def db_upgrade() -> None:
+    """Apply pending migrations to the store (SENTINEL_DATABASE_URL)."""
+    migrate.upgrade()
+    typer.echo(f"Store is at revision {migrate.head_revision()}.")
+
+
+@db_app.command("current")
+def db_current() -> None:
+    """Show the store's migration revision and the latest available one."""
+    with connect() as conn:
+        current = migrate.current_revision(conn)
+    typer.echo(f"current: {current or 'none'}  head: {migrate.head_revision()}")
 
 
 if __name__ == "__main__":

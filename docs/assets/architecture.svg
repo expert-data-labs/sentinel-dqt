@@ -98,7 +98,7 @@
 <text class="t" x="1165.0" y="154.0" text-anchor="middle">Source data</text>
 <text class="s" x="1165.0" y="174.0" text-anchor="middle">CSV via DuckDB · Postgres</text>
 <path class="n" d="M1040,390 a125.0,14 0 0,0 250,0 a125.0,14 0 0,0 -250,0 V472 a125.0,14 0 0,0 250,0 V390"/>
-<text class="t" x="1165.0" y="439.0" text-anchor="middle">sentinel.duckdb</text>
+<text class="t" x="1165.0" y="439.0" text-anchor="middle">Postgres store</text>
 <text class="s" x="1165.0" y="459.0" text-anchor="middle">history store (5 tables)</text>
 <rect class="n" x="1000" y="570" width="226" height="56" rx="8"/>
 <text class="t sm" x="1113.0" y="595.0" text-anchor="middle">ObservabilityQueryService</text>

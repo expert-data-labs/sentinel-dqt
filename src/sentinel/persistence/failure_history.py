@@ -1,28 +1,25 @@
-"""DuckDB-backed FailureHistorySource.
+"""Postgres-backed FailureHistorySource.
 
 Reads past statuses from ``quality_events``. Lives here so
-sentinel.prioritization never imports duckdb.
+sentinel.prioritization never imports a database driver.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 
-import duckdb
-
 from sentinel.domain import Status
+from sentinel.persistence.engine import StoreConnection
 
 _DEFAULT_LIMIT = 90
 
 
-class DuckDBFailureHistorySource:
+class PostgresFailureHistorySource:
     """Past statuses for one rule from the store, newest first, capped at ``limit``
     rows.
     """
 
-    def __init__(
-        self, conn: duckdb.DuckDBPyConnection, limit: int = _DEFAULT_LIMIT
-    ) -> None:
+    def __init__(self, conn: StoreConnection, limit: int = _DEFAULT_LIMIT) -> None:
         self._conn = conn
         self._limit = limit
 
@@ -33,9 +30,9 @@ class DuckDBFailureHistorySource:
             FROM quality_events qe
             JOIN metrics m ON m.id = qe.metric_id
             JOIN validation_runs vr ON vr.id = qe.validation_run_id
-            WHERE vr.dataset_id = ? AND m.metric_name = ?
+            WHERE vr.dataset_id = %s AND m.metric_name = %s
             ORDER BY m.computed_at DESC
-            LIMIT ?
+            LIMIT %s
             """,
             [dataset_id, metric_name, self._limit],
         ).fetchall()

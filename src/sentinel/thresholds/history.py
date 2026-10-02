@@ -1,7 +1,7 @@
 """HistoricalMetricsSource: supplies the ``history`` passed to strategies.
 
-The DuckDB implementation lives in sentinel.persistence so this package never
-imports duckdb.
+The Postgres implementation lives in sentinel.persistence so this package never
+imports a database driver.
 """
 
 from __future__ import annotations

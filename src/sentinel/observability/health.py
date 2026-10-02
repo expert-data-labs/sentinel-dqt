@@ -1,4 +1,4 @@
-"""Pure rules for dataset health and failure recurrence (no I/O, no duckdb)."""
+"""Pure rules for dataset health and failure recurrence (no I/O)."""
 
 from __future__ import annotations
 

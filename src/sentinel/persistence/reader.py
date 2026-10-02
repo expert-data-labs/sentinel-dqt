@@ -6,9 +6,8 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-import duckdb
-
 from sentinel.domain import Status
+from sentinel.persistence.engine import StoreConnection
 
 
 @dataclass(frozen=True)
@@ -21,38 +20,30 @@ class RunSummary:
     failed_rules: tuple[str, ...]
 
 
-def _failed_rule_names(conn: duckdb.DuckDBPyConnection, run_id: uuid.UUID) -> tuple[str, ...]:
+def list_recent_runs(conn: StoreConnection, dataset_name: str, limit: int = 10) -> list[RunSummary]:
+    """The ``limit`` most recent runs for a dataset name, newest first, in one query."""
     rows = conn.execute(
         """
-        SELECT m.metric_name
-        FROM quality_events qe
-        JOIN metrics m ON m.id = qe.metric_id
-        WHERE qe.validation_run_id = ? AND qe.status = ?
-        ORDER BY m.metric_name
+        SELECT r.id, r.started_at, r.status,
+               COALESCE(
+                   array_agg(m.metric_name ORDER BY m.metric_name)
+                       FILTER (WHERE qe.status = %s),
+                   ARRAY[]::text[]
+               ) AS failed_rules
+        FROM (
+            SELECT vr.id, vr.started_at, vr.status
+            FROM validation_runs vr
+            JOIN datasets d ON d.id = vr.dataset_id
+            WHERE d.name = %s
+            ORDER BY vr.started_at DESC
+            LIMIT %s
+        ) r
+        LEFT JOIN quality_events qe ON qe.validation_run_id = r.id
+        LEFT JOIN metrics m ON m.id = qe.metric_id
+        GROUP BY r.id, r.started_at, r.status
+        ORDER BY r.started_at DESC
         """,
-        [run_id, Status.FAIL.value],
-    ).fetchall()
-    return tuple(row[0] for row in rows)
-
-
-def list_recent_runs(
-    conn: duckdb.DuckDBPyConnection, dataset_name: str, limit: int = 10
-) -> list[RunSummary]:
-    """The ``limit`` most recent runs for a dataset name, newest first.
-
-    Uses one query per run for failed rules; fine for small limits on a local
-    DuckDB file.
-    """
-    rows = conn.execute(
-        """
-        SELECT vr.id, vr.started_at, vr.status
-        FROM validation_runs vr
-        JOIN datasets d ON d.id = vr.dataset_id
-        WHERE d.name = ?
-        ORDER BY vr.started_at DESC
-        LIMIT ?
-        """,
-        [dataset_name, limit],
+        (Status.FAIL.value, dataset_name, limit),
     ).fetchall()
 
     return [
@@ -60,7 +51,7 @@ def list_recent_runs(
             run_id=run_id,
             started_at=started_at,
             status=Status(status),
-            failed_rules=_failed_rule_names(conn, run_id),
+            failed_rules=tuple(failed_rules),
         )
-        for run_id, started_at, status in rows
+        for run_id, started_at, status, failed_rules in rows
     ]

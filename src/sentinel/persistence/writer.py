@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import uuid
 
-import duckdb
-
 from sentinel.domain import ValidationRun
+from sentinel.persistence.engine import StoreConnection
 from sentinel.persistence.mapping import to_rows
 
 
-def persist_validation_run(conn: duckdb.DuckDBPyConnection, run: ValidationRun) -> uuid.UUID:
+def persist_validation_run(conn: StoreConnection, run: ValidationRun) -> uuid.UUID:
     """Save the dataset, run, metrics, events and incidents in one transaction.
 
     The dataset row is upserted each time, so it always matches the YAML the CLI
@@ -18,13 +17,12 @@ def persist_validation_run(conn: duckdb.DuckDBPyConnection, run: ValidationRun) 
     """
     persistable = to_rows(run)
 
-    conn.begin()
-    try:
+    with conn.transaction():
         conn.execute(
             """
             INSERT INTO datasets
                 (id, name, source_type, environment, owner, criticality, config_reference)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (id) DO UPDATE SET
                 name = excluded.name,
                 source_type = excluded.source_type,
@@ -33,7 +31,7 @@ def persist_validation_run(conn: duckdb.DuckDBPyConnection, run: ValidationRun) 
                 criticality = excluded.criticality,
                 config_reference = excluded.config_reference
             """,
-            [
+            (
                 persistable.dataset.id,
                 persistable.dataset.name,
                 persistable.dataset.source_type,
@@ -41,83 +39,78 @@ def persist_validation_run(conn: duckdb.DuckDBPyConnection, run: ValidationRun) 
                 persistable.dataset.owner,
                 persistable.dataset.criticality,
                 persistable.dataset.config_reference,
-            ],
+            ),
         )
 
         conn.execute(
             """
             INSERT INTO validation_runs
                 (id, dataset_id, policy_version, started_at, finished_at, status)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
-            [
+            (
                 persistable.run.id,
                 persistable.run.dataset_id,
                 persistable.run.policy_version,
                 persistable.run.started_at,
                 persistable.run.finished_at,
                 persistable.run.status,
-            ],
+            ),
         )
 
-        for metric in persistable.metrics:
-            conn.execute(
+        with conn.cursor() as cur:
+            cur.executemany(
                 """
                 INSERT INTO metrics (id, validation_run_id, metric_name, value, computed_at)
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s)
                 """,
                 [
-                    metric.id,
-                    metric.validation_run_id,
-                    metric.metric_name,
-                    metric.value,
-                    metric.computed_at,
+                    (m.id, m.validation_run_id, m.metric_name, m.value, m.computed_at)
+                    for m in persistable.metrics
                 ],
             )
-
-        for event in persistable.events:
-            conn.execute(
+            cur.executemany(
                 """
                 INSERT INTO quality_events
                     (id, validation_run_id, metric_id, status, expected,
                      strategy_type, severity, blocking, details)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 [
-                    event.id,
-                    event.validation_run_id,
-                    event.metric_id,
-                    event.status,
-                    event.expected,
-                    event.strategy_type,
-                    event.severity,
-                    event.blocking,
-                    event.details,
+                    (
+                        e.id,
+                        e.validation_run_id,
+                        e.metric_id,
+                        e.status,
+                        e.expected,
+                        e.strategy_type,
+                        e.severity,
+                        e.blocking,
+                        e.details,
+                    )
+                    for e in persistable.events
                 ],
             )
-
-        for incident in persistable.incidents:
-            conn.execute(
-                """
-                INSERT INTO incidents
-                    (id, validation_run_id, quality_event_id, priority, score,
-                     components, reasons)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                [
-                    incident.id,
-                    incident.validation_run_id,
-                    incident.quality_event_id,
-                    incident.priority,
-                    incident.score,
-                    incident.components,
-                    incident.reasons,
-                ],
-            )
-    except Exception:
-        conn.rollback()
-        raise
-    else:
-        conn.commit()
+            if persistable.incidents:
+                cur.executemany(
+                    """
+                    INSERT INTO incidents
+                        (id, validation_run_id, quality_event_id, priority, score,
+                         components, reasons)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    [
+                        (
+                            i.id,
+                            i.validation_run_id,
+                            i.quality_event_id,
+                            i.priority,
+                            i.score,
+                            i.components,
+                            i.reasons,
+                        )
+                        for i in persistable.incidents
+                    ],
+                )
 
     return persistable.run.id

@@ -118,7 +118,7 @@ Messages include the file path and, for validation failures, pydantic's field-le
 |---|---|---|
 | `SENTINEL_DATASETS_DIR` | `datasets` | Directory searched for `<name>.yaml` dataset files |
 | `SENTINEL_POLICIES_DIR` | `policies` | Directory searched for `<name>.yaml` policy files |
-| `SENTINEL_DB_PATH` | `sentinel.duckdb` | History store location (see [Persistence](persistence.md)) |
+| `SENTINEL_DATABASE_URL` | `postgresql://sentinel:sentinel@localhost:5432/sentinel` | Sentinel's Postgres store (see [Persistence](persistence.md)) |
 
 Paths are relative to the current working directory.
 

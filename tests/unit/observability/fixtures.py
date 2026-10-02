@@ -15,8 +15,6 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 
-import duckdb
-
 from sentinel.domain import (
     Criticality,
     Dataset,
@@ -28,6 +26,7 @@ from sentinel.domain import (
     ValidationRun,
 )
 from sentinel.domain.incident import Incident, IncidentPriority, IncidentScoreComponents
+from sentinel.persistence.engine import StoreConnection
 from sentinel.persistence.writer import persist_validation_run
 
 AS_OF = datetime(2026, 9, 6, 12, 0, 0, tzinfo=UTC)
@@ -63,9 +62,7 @@ def _threshold_result(
     )
 
 
-def _event(
-    severity: Severity, metric: Metric, threshold_result: ThresholdResult
-) -> QualityEvent:
+def _event(severity: Severity, metric: Metric, threshold_result: ThresholdResult) -> QualityEvent:
     return QualityEvent(
         severity=severity, blocking=True, metric=metric, threshold_result=threshold_result
     )
@@ -115,7 +112,7 @@ def _run(
     )
 
 
-def seed_default_fixture(conn: duckdb.DuckDBPyConnection) -> None:
+def seed_default_fixture(conn: StoreConnection) -> None:
     """Write the fixture history to ``conn``. Call once per test on a fresh store."""
     orders = _dataset(ORDERS_ID, Criticality.HIGH)
     payments = _dataset(PAYMENTS_ID, Criticality.CRITICAL)
@@ -218,9 +215,7 @@ def seed_default_fixture(conn: duckdb.DuckDBPyConnection) -> None:
     # -- customers: one WARNING-priority incident, one run --
     started_at = AS_OF - timedelta(days=1)
     duplicate_count = _metric("duplicate_count", 42.0, started_at)
-    duplicate_count_result = _threshold_result(
-        Status.WARN, "duplicate_count <= 10", 42.0, None, 10
-    )
+    duplicate_count_result = _threshold_result(Status.WARN, "duplicate_count <= 10", 42.0, None, 10)
     event = _event(Severity.WARNING, duplicate_count, duplicate_count_result)
     incident = _incident(
         event,
@@ -235,8 +230,15 @@ def seed_default_fixture(conn: duckdb.DuckDBPyConnection) -> None:
         """
         INSERT INTO datasets
             (id, name, source_type, environment, owner, criticality, config_reference)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         """,
-        [UNVALIDATED_DATASET_ID, UNVALIDATED_DATASET_ID, "duckdb", "production",
-         "data-platform-team", Criticality.LOW.value, None],
+        [
+            UNVALIDATED_DATASET_ID,
+            UNVALIDATED_DATASET_ID,
+            "duckdb",
+            "production",
+            "data-platform-team",
+            Criticality.LOW.value,
+            None,
+        ],
     )

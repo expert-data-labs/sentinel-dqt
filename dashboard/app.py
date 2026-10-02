@@ -5,9 +5,10 @@ Run with:
     uv sync --group dashboard
     uv run streamlit run dashboard/app.py
 
-Display only: all data comes from ObservabilityQueryService. Reads the store at
-SENTINEL_DB_PATH (default ./sentinel.duckdb), so run ``sentinel validate
-<dataset>`` a few times first.
+Display only: all data comes from ObservabilityQueryService. Reads the Postgres
+store at SENTINEL_DATABASE_URL, so run ``sentinel validate <dataset>`` a few
+times first. Each page render borrows a connection from a shared pool, so many
+viewers can use it at once.
 """
 
 from __future__ import annotations
@@ -15,10 +16,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import streamlit as st
+from psycopg_pool import ConnectionPool
 
 from sentinel.observability.queries import ObservabilityQueryService, TimeWindow
-from sentinel.persistence.engine import get_connection
-from sentinel.persistence.schema import ensure_schema
+from sentinel.persistence.engine import StoreConnection, create_pool
 
 _HEALTH_GLYPH: dict[str, str] = {
     "healthy": "🟢 healthy",
@@ -37,11 +38,9 @@ _ALL_DATASETS = "(all datasets)"
 
 
 @st.cache_resource
-def _service() -> ObservabilityQueryService:
-    """One cached connection per Streamlit process. ensure_schema is idempotent."""
-    conn = get_connection()
-    ensure_schema(conn)
-    return ObservabilityQueryService(conn)
+def _pool() -> ConnectionPool[StoreConnection]:
+    """One connection pool per Streamlit server, shared by all sessions."""
+    return create_pool(min_size=1, max_size=5)
 
 
 def _dataset_health_table(views: list) -> list[dict[str, object]]:
@@ -59,7 +58,11 @@ def _dataset_health_table(views: list) -> list[dict[str, object]]:
 
 def main() -> None:
     st.set_page_config(page_title="Sentinel — Data Reliability", layout="wide")
-    service = _service()
+    with _pool().connection() as conn:
+        _render(ObservabilityQueryService(conn))
+
+
+def _render(service: ObservabilityQueryService) -> None:
     as_of = datetime.now(UTC)
 
     st.title("Sentinel — Data Reliability")
@@ -69,11 +72,15 @@ def main() -> None:
     dataset_names = sorted(v.dataset_name for v in health_views)
 
     window_label = st.sidebar.selectbox(
-        "Time window", list(_WINDOW_LABELS), index=1  # default: last 7 days
+        "Time window",
+        list(_WINDOW_LABELS),
+        index=1,  # default: last 7 days
     )
     window = _WINDOW_LABELS[window_label]
-    st.sidebar.caption("Applies to every view below except Dataset Health, which always "
-                       "reflects each dataset's latest run.")
+    st.sidebar.caption(
+        "Applies to every view below except Dataset Health, which always "
+        "reflects each dataset's latest run."
+    )
 
     selected_dataset = st.sidebar.selectbox("Dataset (drill-down)", [_ALL_DATASETS, *dataset_names])
     dataset_id = None if selected_dataset == _ALL_DATASETS else selected_dataset
@@ -158,8 +165,10 @@ def main() -> None:
             points = service.metric_trend(dataset_id, metric_name, window, as_of)
             if points:
                 st.line_chart(
-                    {"computed_at": [p.computed_at for p in points],
-                     "value": [p.value for p in points]},
+                    {
+                        "computed_at": [p.computed_at for p in points],
+                        "value": [p.value for p in points],
+                    },
                     x="computed_at",
                     y="value",
                 )

@@ -1,7 +1,7 @@
 """Observability: read-only dashboard views over Sentinel's stored history.
 
 ObservabilityQueryService and TimeWindow are not re-exported here because they
-import duckdb; import them from ``sentinel.observability.queries``.
+need the database driver; import them from ``sentinel.observability.queries``.
 """
 
 from __future__ import annotations

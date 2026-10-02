@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from pathlib import Path
-
-import duckdb
 
 from sentinel.domain import (
     Criticality,
@@ -16,8 +13,7 @@ from sentinel.domain import (
     ValidationRun,
 )
 from sentinel.domain.incident import Incident, IncidentPriority, IncidentScoreComponents
-from sentinel.persistence.engine import get_connection
-from sentinel.persistence.schema import ensure_schema
+from sentinel.persistence.engine import StoreConnection
 from sentinel.persistence.writer import persist_validation_run
 
 
@@ -53,14 +49,8 @@ def _run(dataset: Dataset | None = None) -> ValidationRun:
     )
 
 
-def _conn(tmp_path: Path) -> duckdb.DuckDBPyConnection:
-    conn = get_connection(tmp_path / "test.duckdb")
-    ensure_schema(conn)
-    return conn
-
-
-def test_persist_writes_the_dataset_run_metric_and_event_rows(tmp_path: Path) -> None:
-    conn = _conn(tmp_path)
+def test_persist_writes_the_dataset_run_metric_and_event_rows(store: StoreConnection) -> None:
+    conn = store
 
     run_id = persist_validation_run(conn, _run())
 
@@ -68,32 +58,32 @@ def test_persist_writes_the_dataset_run_metric_and_event_rows(tmp_path: Path) ->
     assert dataset_row == ("orders", "data-platform-team")
 
     run_row = conn.execute(
-        "SELECT dataset_id, policy_version, status FROM validation_runs WHERE id = ?", [run_id]
+        "SELECT dataset_id, policy_version, status FROM validation_runs WHERE id = %s", [run_id]
     ).fetchone()
     assert run_row == ("orders", "unversioned", "fail")
 
     metric_rows = conn.execute(
-        "SELECT metric_name, value FROM metrics WHERE validation_run_id = ?", [run_id]
+        "SELECT metric_name, value FROM metrics WHERE validation_run_id = %s", [run_id]
     ).fetchall()
     assert metric_rows == [("row_count", 12.0)]
 
     event_rows = conn.execute(
-        "SELECT status, expected, blocking FROM quality_events WHERE validation_run_id = ?",
+        "SELECT status, expected, blocking FROM quality_events WHERE validation_run_id = %s",
         [run_id],
     ).fetchall()
     assert event_rows == [("fail", "row_count >= 1000", True)]
 
 
-def test_persist_returns_the_generated_run_id(tmp_path: Path) -> None:
-    conn = _conn(tmp_path)
+def test_persist_returns_the_generated_run_id(store: StoreConnection) -> None:
+    conn = store
     run_id = persist_validation_run(conn, _run())
 
-    count = conn.execute("SELECT count(*) FROM validation_runs WHERE id = ?", [run_id]).fetchone()
+    count = conn.execute("SELECT count(*) FROM validation_runs WHERE id = %s", [run_id]).fetchone()
     assert count == (1,)
 
 
-def test_persist_upserts_the_dataset_row_on_a_second_run(tmp_path: Path) -> None:
-    conn = _conn(tmp_path)
+def test_persist_upserts_the_dataset_row_on_a_second_run(store: StoreConnection) -> None:
+    conn = store
 
     persist_validation_run(conn, _run(_dataset(owner="alice")))
     persist_validation_run(conn, _run(_dataset(owner="bob")))
@@ -102,8 +92,8 @@ def test_persist_upserts_the_dataset_row_on_a_second_run(tmp_path: Path) -> None
     assert rows == [("bob",)]  # one row, refreshed to the latest owner — not duplicated
 
 
-def test_persist_two_runs_for_the_same_dataset_creates_two_run_rows(tmp_path: Path) -> None:
-    conn = _conn(tmp_path)
+def test_persist_two_runs_for_the_same_dataset_creates_two_run_rows(store: StoreConnection) -> None:
+    conn = store
 
     persist_validation_run(conn, _run())
     persist_validation_run(conn, _run())
@@ -159,55 +149,55 @@ def _run_with_incident(dataset: Dataset | None = None) -> ValidationRun:
     )
 
 
-def test_persist_writes_the_quality_event_details_column(tmp_path: Path) -> None:
-    conn = _conn(tmp_path)
+def test_persist_writes_the_quality_event_details_column(store: StoreConnection) -> None:
+    conn = store
     run_id = persist_validation_run(conn, _run_with_incident())
 
     details = conn.execute(
-        "SELECT details FROM quality_events WHERE validation_run_id = ?", [run_id]
+        "SELECT details FROM quality_events WHERE validation_run_id = %s", [run_id]
     ).fetchone()
     assert details == ('{"method": "static", "actual": 12.0, "min": 1000, "max": null}',)
 
 
 def test_persist_writes_a_null_details_when_the_threshold_result_has_none(
-    tmp_path: Path,
+    store: StoreConnection,
 ) -> None:
     """No threshold details are stored as NULL."""
-    conn = _conn(tmp_path)
+    conn = store
     run_id = persist_validation_run(conn, _run())
 
     details = conn.execute(
-        "SELECT details FROM quality_events WHERE validation_run_id = ?", [run_id]
+        "SELECT details FROM quality_events WHERE validation_run_id = %s", [run_id]
     ).fetchone()
     assert details == (None,)
 
 
-def test_persist_writes_one_incident_row_per_incident(tmp_path: Path) -> None:
-    conn = _conn(tmp_path)
+def test_persist_writes_one_incident_row_per_incident(store: StoreConnection) -> None:
+    conn = store
     run_id = persist_validation_run(conn, _run_with_incident())
 
     rows = conn.execute(
-        "SELECT priority, score FROM incidents WHERE validation_run_id = ?", [run_id]
+        "SELECT priority, score FROM incidents WHERE validation_run_id = %s", [run_id]
     ).fetchall()
     assert rows == [("high", 61.0)]
 
 
-def test_persist_writes_no_incident_rows_when_the_run_has_none(tmp_path: Path) -> None:
+def test_persist_writes_no_incident_rows_when_the_run_has_none(store: StoreConnection) -> None:
     """A run without incidents writes no incident rows."""
-    conn = _conn(tmp_path)
+    conn = store
     run_id = persist_validation_run(conn, _run())
 
     count = conn.execute(
-        "SELECT count(*) FROM incidents WHERE validation_run_id = ?", [run_id]
+        "SELECT count(*) FROM incidents WHERE validation_run_id = %s", [run_id]
     ).fetchone()
     assert count == (0,)
 
 
 def test_persist_links_an_incident_to_its_own_quality_event_not_another(
-    tmp_path: Path,
+    store: StoreConnection,
 ) -> None:
     """With two failed events, each incident links to its own event."""
-    conn = _conn(tmp_path)
+    conn = store
     started = datetime(2026, 8, 26, 12, 0, 0, tzinfo=UTC)
     finished = datetime(2026, 8, 26, 12, 0, 1, tzinfo=UTC)
 
@@ -252,7 +242,7 @@ def test_persist_links_an_incident_to_its_own_quality_event_not_another(
         FROM incidents i
         JOIN quality_events qe ON qe.id = i.quality_event_id
         JOIN metrics m ON m.id = qe.metric_id
-        WHERE i.validation_run_id = ?
+        WHERE i.validation_run_id = %s
         """,
         [run_id],
     ).fetchone()

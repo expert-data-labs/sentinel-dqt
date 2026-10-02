@@ -1,7 +1,7 @@
 # Observability and Dashboard
 
 **Location:** `src/sentinel/observability/`, `dashboard/app.py`
-**Depends on:** `domain`, `duckdb` (`queries.py` only), `streamlit` (dashboard only)
+**Depends on:** `domain`, `persistence.engine` (`queries.py` only), `streamlit` (dashboard only)
 **Used by:** the dashboard
 
 The observability layer answers "how healthy is our data, and what keeps breaking?" from the facts that validation runs have already persisted. It is **read-only** and never re-implements validation, threshold or prioritization logic.
@@ -9,7 +9,7 @@ The observability layer answers "how healthy is our data, and what keeps breakin
 | File | Role |
 |---|---|
 | `observability/views.py` | Frozen read models returned to callers |
-| `observability/health.py` | Pure derivation rules: dataset health, recurrence classification. No DuckDB import. |
+| `observability/health.py` | Pure derivation rules: dataset health, recurrence classification. No database access. |
 | `observability/queries.py` | `ObservabilityQueryService(conn)`: one method per view, each a single aggregating query |
 | `dashboard/app.py` | Streamlit app. Reads only through `ObservabilityQueryService`. |
 
@@ -68,7 +68,7 @@ uv sync --group dashboard
 uv run streamlit run dashboard/app.py
 ```
 
-The dashboard reads `SENTINEL_DB_PATH` like the CLI. Run `sentinel validate` a few times first so there is history to show.
+The dashboard reads `SENTINEL_DATABASE_URL` like the CLI. Run `sentinel validate` a few times first so there is history to show.
 
 | Section | Content |
 |---|---|
@@ -83,7 +83,7 @@ The dashboard reads `SENTINEL_DB_PATH` like the CLI. Run `sentinel validate` a f
 **Notes:**
 
 - Streamlit is an optional dependency group, so CLI-only users never install it.
-- The dashboard opens the store with a normal connection and holds it while running. Because DuckDB allows one process per file, stop the dashboard before running `sentinel validate` against the same store, or point them at different files.
+- The dashboard shares a small connection pool across all viewer sessions and borrows one connection per page render. It can run alongside any number of `sentinel validate` processes.
 - The dataset drill-down passes the dataset **name** as the id. Keep `id` and `name` identical in dataset YAML (the bundled examples do).
 
 ---

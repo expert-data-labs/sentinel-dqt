@@ -9,7 +9,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    # Postgres for the Postgres tests (same credentials as docker-compose.yml).
+    # Postgres: Sentinel's store and the Postgres data-source tests
+    # (same credentials as docker-compose.yml).
     services:
       postgres:
         image: postgres:16-alpine
@@ -27,6 +28,8 @@ jobs:
 
     env:
       SENTINEL_TEST_POSTGRES_DSN: postgresql://sentinel:sentinel@localhost:5432/sentinel
+      # Store tests fail (rather than skip) if Postgres is unreachable.
+      SENTINEL_REQUIRE_POSTGRES: "1"
       # Test on the minimum supported Python.
       UV_PYTHON: "3.11"
 

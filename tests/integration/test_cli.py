@@ -1,7 +1,7 @@
 """End-to-end CLI tests for ``sentinel validate`` and ``sentinel history``.
 
-Uses the repo's real orders config (datasets/, policies/, data/orders.csv) and a
-temporary DuckDB store. Every orders rule fails on the 12-row sample and is
+Uses the repo's real orders config (datasets/, policies/, data/orders.csv) and
+the Postgres test store. Every orders rule fails on the 12-row sample and is
 blocking, so ``validate`` always exits 2 here.
 """
 
@@ -13,6 +13,8 @@ import pytest
 from typer.testing import CliRunner
 
 from sentinel.cli.main import app
+from sentinel.persistence import migrate
+from sentinel.persistence.engine import StoreConnection
 
 REPO_ROOT = Path(__file__).parents[2]
 
@@ -20,13 +22,12 @@ runner = CliRunner()
 
 
 @pytest.fixture(autouse=True)
-def _real_repo_config_and_temp_history(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+def _real_repo_config_and_test_store(
+    monkeypatch: pytest.MonkeyPatch, store: StoreConnection
 ) -> None:
-    """Run from the repo root with SENTINEL_DB_PATH pointed at a temp file."""
+    """Run from the repo root against the (emptied) test store."""
     monkeypatch.delenv("SENTINEL_DATASETS_DIR", raising=False)
     monkeypatch.delenv("SENTINEL_POLICIES_DIR", raising=False)
-    monkeypatch.setenv("SENTINEL_DB_PATH", str(tmp_path / "history.duckdb"))
     monkeypatch.chdir(REPO_ROOT)
 
 
@@ -66,3 +67,20 @@ def test_history_limit_option_caps_how_many_runs_are_shown() -> None:
 
     assert result.exit_code == 0
     assert result.output.count("run=") == 1
+
+
+def test_validate_exits_3_when_the_store_is_not_migrated(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(migrate, "head_revision", lambda: "9999")
+
+    result = runner.invoke(app, ["validate", "orders"])
+
+    assert result.exit_code == 3
+    assert "sentinel db upgrade" in result.output
+
+
+def test_db_current_reports_the_store_at_head() -> None:
+    result = runner.invoke(app, ["db", "current"])
+
+    assert result.exit_code == 0
+    head = migrate.head_revision()
+    assert f"current: {head}  head: {head}" in result.output

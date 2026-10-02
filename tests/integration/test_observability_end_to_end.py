@@ -1,6 +1,6 @@
 """End-to-end: validate -> persist -> read back through ObservabilityQueryService.
 
-Same setup as test_end_to_end.py (every rule fails), plus a temporary DuckDB
+Same setup as test_end_to_end.py (every rule fails), plus the Postgres test
 store.
 """
 
@@ -14,8 +14,7 @@ from sentinel.domain import Criticality, Dataset, Status
 from sentinel.observability.queries import ObservabilityQueryService, TimeWindow
 from sentinel.observability.views import RecurrenceClassification
 from sentinel.orchestration import ValidationOrchestrator
-from sentinel.persistence.engine import get_connection
-from sentinel.persistence.schema import ensure_schema
+from sentinel.persistence.engine import StoreConnection
 from sentinel.persistence.writer import persist_validation_run
 from sentinel.policy_loader import load_policy
 from sentinel.registration import register_all
@@ -45,7 +44,7 @@ def _orders_dataset() -> Dataset:
     )
 
 
-def test_validate_then_persist_then_observe(tmp_path: Path) -> None:
+def test_validate_then_persist_then_observe(store: StoreConnection) -> None:
     register_all()
     policy = load_policy(FIXTURES_ROOT / "policies" / "orders_m1.yaml")
     source = _orders_data_source()
@@ -55,11 +54,9 @@ def test_validate_then_persist_then_observe(tmp_path: Path) -> None:
     assert run.status is Status.FAIL  # every rule fails against this fixture (see module docstring)
     assert len(run.incidents) == 3  # one per non-PASS event -- all three rules failed
 
-    conn = get_connection(tmp_path / "test.duckdb")
-    ensure_schema(conn)
-    run_id = persist_validation_run(conn, run)
+    run_id = persist_validation_run(store, run)
 
-    service = ObservabilityQueryService(conn)
+    service = ObservabilityQueryService(store)
     as_of = run.finished_at
 
     # Dataset Health: only failures, so neither HEALTHY nor UNKNOWN.

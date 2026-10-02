@@ -1,22 +1,22 @@
 """Read-only drill-down into one validation run's incidents -- the parts the
 dashboard doesn't show (run id, all five score components, all five reasons,
-threshold details). Opens the store with read_only=True; never writes.
+threshold details). The session is read-only; it never writes.
 
-    SENTINEL_DB_PATH=demo/demo.duckdb uv run python demo/inspect_run.py            # latest run
-    SENTINEL_DB_PATH=demo/demo.duckdb uv run python demo/inspect_run.py <run-id>   # a specific run
+    uv run python demo/inspect_run.py            # latest run
+    uv run python demo/inspect_run.py <run-id>   # a specific run
 
-Stop the dashboard first: DuckDB allows only one process to hold the file.
+Reads the store at SENTINEL_DATABASE_URL (run_demo.sh prints the demo URL).
 """
 
 from __future__ import annotations
 
 import json
-import os
 import sys
 
-import duckdb
+from sentinel.persistence.engine import connect
 
-conn = duckdb.connect(os.environ.get("SENTINEL_DB_PATH", "sentinel.duckdb"), read_only=True)
+conn = connect()
+conn.execute("SET default_transaction_read_only = on")
 
 if len(sys.argv) > 1:
     run_id = sys.argv[1]
@@ -27,7 +27,7 @@ else:
     run_id = str(row[0])
 
 run = conn.execute(
-    "SELECT dataset_id, started_at, status, policy_version FROM validation_runs WHERE id = ?",
+    "SELECT dataset_id, started_at, status, policy_version FROM validation_runs WHERE id = %s",
     [run_id],
 ).fetchone()
 if run is None:
@@ -44,7 +44,7 @@ events = conn.execute(
     FROM quality_events qe
     JOIN metrics m ON m.id = qe.metric_id
     LEFT JOIN incidents i ON i.quality_event_id = qe.id
-    WHERE qe.validation_run_id = ?
+    WHERE qe.validation_run_id = %s
     ORDER BY i.score DESC NULLS LAST, m.metric_name
     """,
     [run_id],

@@ -126,28 +126,31 @@ Each entry follows the same structure: **Decision**, **Why**, **Alternatives con
 
 ## Storage and operation
 
-### D18. Sentinel's own store is an embedded DuckDB file
+### D18. Sentinel's own store is PostgreSQL
 
-- **Decision.** Runs, metrics, events and incidents are written to a local DuckDB file (`SENTINEL_DB_PATH`, default `./sentinel.duckdb`) with parameterized SQL. Schema is created with idempotent DDL at startup.
-- **Why.** Zero infrastructure for local and single-pipeline use, and fast analytical reads for the dashboard.
-- **Alternatives considered.** SQLAlchemy + PostgreSQL + Alembic. The right long-term target, deferred until it is needed.
-- **Trade-off.** DuckDB allows one writing process per file. Concurrent `sentinel validate` processes, or `validate` while the dashboard holds the file, will conflict.
-- **Revisit when.** More than one pipeline writes history concurrently, or a service needs to read while pipelines write. All storage code is confined to `persistence/` and `observability/queries.py`, which keeps that migration contained.
+- **Decision.** Runs, metrics, events and incidents are written to a shared PostgreSQL database (`SENTINEL_DATABASE_URL`) through psycopg 3 with hand-written, parameterized SQL. No ORM.
+- **Why.** Sentinel must serve many teams and simultaneous validation runs (CLI processes now, API workers next). Postgres gives concurrent writers, row-level locking, advisory locks for coordination, constraints, and a managed-service path in every cloud. It was already a supported data source, so no new technology was added.
+- **History.** The store started as an embedded DuckDB file: zero setup, but one writing process per file. It was replaced once concurrent, multi-team use became a requirement.
+- **Alternatives considered.** Keeping DuckDB for local use behind a store interface (two SQL dialects to maintain and test). MySQL (no advantage here, and a new technology). SQLAlchemy ORM (more abstraction than a five-table, write-once schema needs).
+- **Trade-off.** Local development and the store tests need a running Postgres (`docker compose up -d`).
+- **Revisit when.** Analytical reads over long history get slow: add partitioning by `started_at` or replicate to a warehouse, keeping Postgres as the system of record.
 
 ### D19. The data being validated and Sentinel's store are unrelated connections
 
 - **Decision.** `DuckDBSource` opens its own in-memory DuckDB connection per run to query a CSV file. The history store is a separate, durable file.
-- **Why.** They serve unrelated roles. Moving the history store to Postgres does not touch `DuckDBSource` at all.
+- **Why.** They serve unrelated roles. Moving the history store from DuckDB to Postgres did not touch `DuckDBSource` at all.
 
 ### D20. Persistence is one-directional, with no repository layer
 
 - **Decision.** `persistence/mapping.py::to_rows()` flattens a `ValidationRun` into rows and assigns UUIDs. `writer.py` writes them in one transaction. Read paths return thin projections, never reconstructed domain objects.
 - **Why.** Nothing needs a full row-to-domain mapper. One transaction guarantees no reader ever sees half a run.
 
-### D21. Additive schema evolution
+### D21. Versioned migrations with Alembic, in raw SQL
 
-- **Decision.** Tables are created with `CREATE TABLE IF NOT EXISTS`. New columns are added with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, which also upgrades existing database files.
-- **Revisit when.** A change requires a destructive or data-transforming migration. Adopt a migration tool at that point.
+- **Decision.** Schema changes are Alembic migrations whose bodies are plain SQL (`op.execute`). `sentinel db upgrade` applies them once per deploy; the CLI refuses to run (exit `3`) if the store isn't at the code's head revision.
+- **Why.** A shared production database needs ordered, reviewable, reversible changes, applied once rather than by every process at startup. Raw SQL keeps migrations readable without introducing ORM models.
+- **Alternatives considered.** Idempotent DDL on every start (the previous approach; can't express destructive or data changes, and races between processes). Numbered SQL files with a custom runner (no dependency, but reinvents version tracking and locking).
+- **Trade-off.** Adds `alembic` and `sqlalchemy` (used only as Alembic's driver).
 
 ### D22. Filesystem convention instead of a dataset registry
 
@@ -166,3 +169,11 @@ Each entry follows the same structure: **Decision**, **Why**, **Alternatives con
 - **Decision.** A single-file Streamlit app that reads only through `ObservabilityQueryService`, installed through its own optional dependency group.
 - **Why.** All logic lives in the tested query layer. CLI users never install a web framework.
 - **Alternatives considered.** A text dashboard in the CLI (no new dependency, but trend charts are far weaker as ASCII).
+
+### D25. Runs of the same dataset are serialized with an advisory lock
+
+- **Decision.** `validate_and_record()` holds a Postgres session-level advisory lock keyed on the dataset id from the history reads through the write. Different datasets don't block each other.
+- **Why.** Adaptive thresholds and failure-frequency scoring read history before writing. Without serialization, two simultaneous runs of one dataset read the same history and each misses the other.
+- **Alternatives considered.** `SERIALIZABLE` transactions (would hold a transaction open while rules query the data source, and need retry logic). A `dataset_runs` lock table (needs cleanup when a process crashes; advisory locks are released automatically). No coordination (silent lost updates).
+- **Trade-off.** A second run of the same dataset waits for the first. Callers that prefer to reject can pass `wait=False`.
+- **Revisit when.** Validation moves to a job queue with one consumer per dataset, which makes the lock redundant.

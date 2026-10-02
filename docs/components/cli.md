@@ -25,13 +25,11 @@ sentinel validate orders
 
 Sequence:
 
-1. `build_context()` calls `register_all()`, then `get_connection()`, then `ensure_schema()`.
+1. `build_context()` calls `register_all()`, opens a store connection, and checks the store is at the latest migration (exit `3` if not).
 2. `resolve_dataset("orders")` and `resolve_policy("orders")` load and validate both YAML files.
 3. `get_data_source(dataset.source_type, dataset.config_reference)` builds the adapter.
-4. `ValidationOrchestrator` is built with `DuckDBHistoricalMetricsSource` and `DuckDBFailureHistorySource`, both on the same connection.
-5. `orchestrator.run(...)` returns the `ValidationRun`.
-6. `persist_validation_run(conn, run)` writes it and returns the run id.
-7. A summary is printed and the process exits with the computed code.
+4. `validate_and_record(conn, dataset, policy, source)` takes the dataset's run lock, runs `ValidationOrchestrator` (with the Postgres history sources on the same connection), writes the run, and releases the lock. A concurrent `validate` of the same dataset waits; other datasets run in parallel.
+5. A summary is printed and the process exits with the computed code.
 
 ### Output
 
@@ -95,7 +93,7 @@ The `failed:` list shows rules with status FAIL. Note that `history` looks datas
 
 | Variable | Default | Used for |
 |---|---|---|
-| `SENTINEL_DB_PATH` | `sentinel.duckdb` | History store |
+| `SENTINEL_DATABASE_URL` | `postgresql://sentinel:sentinel@localhost:5432/sentinel` | Sentinel's Postgres store |
 | `SENTINEL_DATASETS_DIR` | `datasets` | Dataset YAML lookup |
 | `SENTINEL_POLICIES_DIR` | `policies` | Policy YAML lookup |
 
