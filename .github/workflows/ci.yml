@@ -30,20 +30,29 @@ jobs:
 
     env:
       SENTINEL_TEST_POSTGRES_DSN: postgresql://sentinel:sentinel@localhost:5432/sentinel
+      # Pin the interpreter every `uv` command uses to the project's floor
+      # (requires-python >= 3.11), so CI catches 3.12+-only syntax/APIs.
+      UV_PYTHON: "3.11"
 
     steps:
-      - uses: actions/checkout@v4
+      # checkout@v5+ and setup-uv@v7+ run on Node 24. setup-uv stopped
+      # publishing floating major tags at v8, so it is pinned to an exact
+      # release. The old setup-uv@v3 also used the retired cache service,
+      # which is what produced "Cache service responded with 400".
+      - uses: actions/checkout@v5
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
 
       - name: Set up Python
         run: uv python install 3.11
 
+      # --locked fails if uv.lock is out of date with pyproject.toml,
+      # instead of silently re-resolving dependencies in CI.
       - name: Install dependencies
-        run: uv sync --all-groups
+        run: uv sync --locked --all-groups
 
       - name: Lint
         run: uv run ruff check .

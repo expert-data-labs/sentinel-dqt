@@ -75,7 +75,7 @@ def _percentage_deviation_ratio(details: dict[str, Any]) -> float:
         return _UNDEFINED_BASELINE_RATIO
     if not max_deviation:
         return _UNDEFINED_BASELINE_RATIO
-    return abs(deviation) / max_deviation
+    return float(abs(deviation) / max_deviation)
 
 
 def _static_ratio(details: dict[str, Any]) -> float | None:
@@ -122,4 +122,4 @@ def _bound_based_ratio(details: dict[str, Any]) -> float | None:
     center = (upper + lower) / 2
     if half_width == 0:
         return _UNDEFINED_BASELINE_RATIO
-    return abs(actual - center) / half_width
+    return float(abs(actual - center) / half_width)

@@ -44,7 +44,8 @@ def test_incident_priority_is_a_distinct_type_from_severity_and_criticality() ->
     type checker enforces -- is that they are different classes, so a
     QualityEvent.severity and an Incident.priority can never be silently
     interchanged in code that type-checks against the correct one."""
-    assert IncidentPriority is not Severity
+    assert not issubclass(IncidentPriority, Severity)
+    assert not issubclass(Severity, IncidentPriority)
     assert IncidentPriority.HIGH.__class__ is IncidentPriority
     assert Severity.HIGH.__class__ is Severity
 

@@ -203,9 +203,14 @@ def test_worst_status_picks_the_most_severe(statuses: list[Status], expected: St
 
 def test_default_prioritizer_produces_an_incident_for_a_failing_event() -> None:
     class _FailingStrategy:
-        strategy_type = "always_fail"
+        strategy_type: ClassVar[str] = "always_fail"
 
-        def evaluate(self, metric, config, history=()):  # type: ignore[no-untyped-def]
+        def evaluate(
+            self,
+            metric: Metric,
+            config: ThresholdConfig,
+            history: Sequence[Metric] = (),
+        ) -> ThresholdResult:
             return ThresholdResult(
                 status=Status.FAIL, expected="n/a", strategy_type=self.strategy_type
             )
@@ -242,9 +247,14 @@ def test_incidents_are_only_produced_for_non_pass_events_among_several_rules() -
     stays shorter than run.quality_events."""
 
     class _MixedStrategy:
-        strategy_type = "mixed"
+        strategy_type: ClassVar[str] = "mixed"
 
-        def evaluate(self, metric, config, history=()):  # type: ignore[no-untyped-def]
+        def evaluate(
+            self,
+            metric: Metric,
+            config: ThresholdConfig,
+            history: Sequence[Metric] = (),
+        ) -> ThresholdResult:
             status = Status.FAIL if metric.metric_name == "null_rate" else Status.PASS
             return ThresholdResult(status=status, expected="n/a", strategy_type=self.strategy_type)
 
@@ -268,9 +278,14 @@ def test_default_failure_history_source_treats_every_failure_as_first_occurrence
     Milestone 4's NullHistorySource default already established."""
 
     class _FailingStrategy:
-        strategy_type = "always_fail_2"
+        strategy_type: ClassVar[str] = "always_fail_2"
 
-        def evaluate(self, metric, config, history=()):  # type: ignore[no-untyped-def]
+        def evaluate(
+            self,
+            metric: Metric,
+            config: ThresholdConfig,
+            history: Sequence[Metric] = (),
+        ) -> ThresholdResult:
             return ThresholdResult(
                 status=Status.FAIL, expected="n/a", strategy_type=self.strategy_type
             )
@@ -289,9 +304,14 @@ def test_default_failure_history_source_treats_every_failure_as_first_occurrence
 
 def test_failure_history_source_is_scoped_by_dataset_id_and_rule_name() -> None:
     class _FailingStrategy:
-        strategy_type = "always_fail_3"
+        strategy_type: ClassVar[str] = "always_fail_3"
 
-        def evaluate(self, metric, config, history=()):  # type: ignore[no-untyped-def]
+        def evaluate(
+            self,
+            metric: Metric,
+            config: ThresholdConfig,
+            history: Sequence[Metric] = (),
+        ) -> ThresholdResult:
             return ThresholdResult(
                 status=Status.FAIL, expected="n/a", strategy_type=self.strategy_type
             )

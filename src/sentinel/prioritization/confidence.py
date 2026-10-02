@@ -125,8 +125,10 @@ def extract_n_history(result: ThresholdResult) -> int | None:
     # size that actually backed *this* evaluation's baseline, unlike
     # n_history_total (every day of the week combined).
     if "n_history_in_bucket" in details:
-        return details["n_history_in_bucket"]
-    return details.get("n_history")
+        raw = details["n_history_in_bucket"]
+    else:
+        raw = details.get("n_history")
+    return None if raw is None else int(raw)
 
 
 def _consistency_factor(consecutive_failures: int) -> float:

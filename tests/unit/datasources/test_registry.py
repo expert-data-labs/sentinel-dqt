@@ -45,6 +45,9 @@ def test_register_and_resolve_a_dummy_source() -> None:
         def max_value(self, column: str) -> Any:
             return None
 
+        def columns(self) -> dict[str, str]:
+            return {}
+
     source = get_data_source("echo", "some/path.csv")
     assert isinstance(source, EchoSource)
     assert source.config_reference == "some/path.csv"
@@ -70,6 +73,9 @@ def test_unregistered_source_type_raises_with_known_types_listed() -> None:
         def max_value(self, column: str) -> Any:
             return None
 
+        def columns(self) -> dict[str, str]:
+            return {}
+
     with pytest.raises(DataSourceNotRegisteredError, match="echo"):
         get_data_source("does_not_exist", None)
 
@@ -94,6 +100,9 @@ def test_registering_a_duplicate_source_type_raises() -> None:
         def max_value(self, column: str) -> Any:
             return None
 
+        def columns(self) -> dict[str, str]:
+            return {}
+
     with pytest.raises(ValueError, match="duplicate"):
 
         @register_data_source
@@ -114,3 +123,6 @@ def test_registering_a_duplicate_source_type_raises() -> None:
 
             def max_value(self, column: str) -> Any:
                 return None
+
+            def columns(self) -> dict[str, str]:
+                return {}
