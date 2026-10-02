@@ -19,7 +19,7 @@ Quality checks usually live inside pipeline code: a `COUNT(*)` with an `assert`,
 | Concern | In Sentinel |
 |---|---|
 | **What to check** | Declared once per dataset in a policy file, reviewed like code |
-| **How to measure it** | Reusable rules that work unchanged on CSV/DuckDB and Postgres |
+| **How to measure it** | Reusable rules that work unchanged on files, Postgres, MySQL, Snowflake, BigQuery and MongoDB |
 | **What counts as acceptable** | Pluggable threshold strategies, from fixed bounds to seasonal baselines learned from history |
 | **Whether it matters** | Every failure becomes a prioritized, explained incident |
 | **What happened before** | Every measurement, verdict and incident is persisted and queryable |
@@ -29,7 +29,7 @@ Measurements are stored separately from pass/fail verdicts. That is what makes a
 ## Features
 
 - **Five rule types:** row count, null rate, uniqueness, freshness, schema validation
-- **Two data sources:** CSV files through DuckDB, and PostgreSQL tables
+- **Six data sources:** files (CSV, Parquet, JSON; local or S3) through DuckDB, PostgreSQL, MySQL, Snowflake, BigQuery and MongoDB, with secrets supplied as `${ENV_VAR}`
 - **Five threshold strategies:**
   - `static`
   - `percentage_deviation`
@@ -196,7 +196,7 @@ src/sentinel/
   policy_loader/    Policy YAML loader
   dataset_loader/   Dataset YAML loader
   rules/            Rule protocol, registry, 5 rules
-  datasources/      DataSource protocol, registry, DuckDB and Postgres adapters
+  datasources/      DataSource protocol, registry, shared SQL base, six adapters
   thresholds/       ThresholdStrategy protocol, registry, 5 strategies, history interface
   orchestration/    ValidationOrchestrator
   prioritization/   IncidentPrioritizer and scoring model
@@ -211,7 +211,7 @@ examples/           Setup for the examples (history backfill, Postgres table)
 demo/               Self-contained guided demo
 experiments/        Reproducible threshold-strategy evaluation
 tests/unit/         Mirrors src/sentinel/
-tests/integration/  CLI, end-to-end, concurrent runs, DuckDB/Postgres parity, observability
+tests/integration/  CLI, end-to-end, concurrent runs, adapter contract, examples, observability
 docs/               Architecture, component reference, experiment results
 ```
 
@@ -239,7 +239,7 @@ uv run pytest
 
 Schema changes are Alembic migrations in `src/sentinel/persistence/migrations/versions/`. Create one with `uv run alembic revision -m "..."` and apply with `uv run sentinel db upgrade`.
 
-To validate a Postgres table, set the dataset's `source_type: postgres` and `config_reference: postgresql://user:pass@host:5432/db?table=orders`.
+`docker compose up -d` also starts MySQL and MongoDB for the adapter contract tests. Snowflake and BigQuery contract tests run when `SENTINEL_TEST_SNOWFLAKE_URL` / `SENTINEL_TEST_BIGQUERY_URL` are set. To validate other sources, see [Data Sources](docs/components/data-sources.md#configuration-per-source); install their drivers with `uv sync --extra snowflake` (or `mysql`, `bigquery`, `mongodb`, `all-sources`).
 
 ### Docker
 
@@ -277,7 +277,7 @@ This rewrites [`docs/experiments/threshold-strategy-evaluation.md`](docs/experim
 - **No built-in WARN.** The built-in strategies return PASS or FAIL only.
 - **Policies are versioned by hand** through the optional `version:` field.
 - **Renaming a rule resets its history.**
-- **Credentials in YAML.** Postgres connection URLs live in plain dataset YAML.
+- **One dataset is one table or collection.** Joins and custom SQL aren't supported; point the dataset at a view instead.
 
 ## License
 

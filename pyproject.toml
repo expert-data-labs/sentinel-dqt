@@ -21,6 +21,20 @@ dependencies = [
     "sqlalchemy>=2.0",
 ]
 
+# Data-source drivers, installed only when needed:
+#   pip install 'sentinel[snowflake,mongodb]'   or   uv sync --extra snowflake
+[project.optional-dependencies]
+snowflake = ["snowflake-connector-python>=3.10"]
+bigquery = ["google-cloud-bigquery>=3.20"]
+mysql = ["pymysql>=1.1"]
+mongodb = ["pymongo>=4.7"]
+all-sources = [
+    "snowflake-connector-python>=3.10",
+    "google-cloud-bigquery>=3.20",
+    "pymysql>=1.1",
+    "pymongo>=4.7",
+]
+
 [project.scripts]
 sentinel = "sentinel.cli.main:app"
 
@@ -30,6 +44,7 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "types-PyYAML>=6.0",
+    "types-PyMySQL>=1.1",
 ]
 # Optional dashboard (dashboard/app.py): uv sync --group dashboard
 dashboard = [
@@ -61,3 +76,8 @@ mypy_path = "src"
 packages = ["sentinel", "tests"]
 strict = true
 plugins = ["pydantic.mypy"]
+
+# Optional cloud drivers without complete type information.
+[[tool.mypy.overrides]]
+module = ["snowflake.*", "google.*"]
+ignore_missing_imports = true

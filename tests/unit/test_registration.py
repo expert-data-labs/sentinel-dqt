@@ -8,6 +8,7 @@ calls are safe.
 from __future__ import annotations
 
 from sentinel.datasources import get_data_source
+from sentinel.datasources import registry as datasource_registry
 from sentinel.registration import register_all
 from sentinel.rules import get_rule
 from sentinel.thresholds import get_threshold_strategy
@@ -41,6 +42,14 @@ def test_register_all_makes_the_duckdb_source_resolvable() -> None:
 
     source = get_data_source("duckdb", "unused/path.csv")
     assert source.source_type == "duckdb"
+
+
+def test_register_all_registers_every_built_in_source_type() -> None:
+    register_all()
+
+    assert {"duckdb", "postgres", "mysql", "snowflake", "bigquery", "mongodb"} <= set(
+        datasource_registry._REGISTRY
+    )
 
 
 def test_register_all_is_safe_to_call_more_than_once() -> None:

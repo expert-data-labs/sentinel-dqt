@@ -2,7 +2,7 @@
 
 Covers ``_canonical_type``, ``_parse_config_reference`` and constructor errors.
 Queries against a real table are in
-tests/integration/test_postgres_duckdb_parity.py.
+tests/integration/test_adapter_contract.py.
 """
 
 from __future__ import annotations

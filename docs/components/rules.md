@@ -89,7 +89,7 @@ A rule that is missing a required field (`column` or `expected_schema`) raises `
 
 2. Import the module in `sentinel/registration.py::register_all()`.
 3. Add `tests/unit/rules/test_<your_rule>.py` using `FakeDataSource` from `tests/unit/doubles.py`.
-4. If the rule needs a measurement no `DataSource` method provides, add the method to the `DataSource` Protocol **and to every adapter**, and extend `tests/integration/test_postgres_duckdb_parity.py` so both adapters are proven to agree.
+4. If the rule needs a measurement no `DataSource` method provides, add the method to the `DataSource` Protocol **and to every adapter**, and add a check to `tests/integration/test_adapter_contract.py` so every adapter is proven to agree.
 
 Nothing in the orchestrator, persistence or CLI changes.
 

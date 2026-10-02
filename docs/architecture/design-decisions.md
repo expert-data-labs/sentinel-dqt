@@ -158,11 +158,12 @@ Each entry follows the same structure: **Decision**, **Why**, **Alternatives con
 - **Why.** Config lives next to code in version control, which gives review and history for free.
 - **Revisit when.** Datasets are registered by teams that don't share a repository, or policies need server-side versioning.
 
-### D23. Postgres connection details travel in `config_reference`
+### D23. Connection details travel in `config_reference`, secrets through `${ENV_VAR}`
 
-- **Decision.** A Postgres dataset's `config_reference` is a connection URL with the table as a query parameter: `postgresql://user:pass@host:5432/db?table=orders`.
-- **Why.** No new `Dataset` field was needed. The adapter parses the URL.
-- **Trade-off.** Credentials sit in plain YAML. Acceptable for local use; production use needs a secrets mechanism.
+- **Decision.** A database dataset's `config_reference` is a connection URL with the object as a query parameter (`?table=orders`, `?collection=orders`). It may reference environment variables (`${SNOWFLAKE_PASSWORD}`), expanded only when the adapter is created.
+- **Why.** One string field works for every source with no adapter-specific fields on `Dataset`. Environment variables are the lowest common denominator every scheduler, CI system and secret manager can supply, and the stored config keeps the reference, never the secret.
+- **Alternatives considered.** Per-source credential fields (schema grows with every adapter). A secrets-manager integration (ties Sentinel to one vendor; can be layered on later as another expansion syntax).
+- **Trade-off.** URLs get long for warehouses with many options.
 
 ### D24. The dashboard is a thin, optional shell
 
@@ -177,3 +178,11 @@ Each entry follows the same structure: **Decision**, **Why**, **Alternatives con
 - **Alternatives considered.** `SERIALIZABLE` transactions (would hold a transaction open while rules query the data source, and need retry logic). A `dataset_runs` lock table (needs cleanup when a process crashes; advisory locks are released automatically). No coordination (silent lost updates).
 - **Trade-off.** A second run of the same dataset waits for the first. Callers that prefer to reject can pass `wait=False`.
 - **Revisit when.** Validation moves to a job queue with one consumer per dataset, which makes the lock redundant.
+
+### D26. One SQL base class; optional drivers as extras
+
+- **Decision.** DuckDB, Postgres, MySQL, Snowflake and BigQuery adapters share `SqlDataSource`, which implements the four aggregate capabilities with standard SQL. Each adapter provides only its connection, quoting, table reference and schema introspection. MongoDB implements the Protocol directly. Warehouse and database drivers are optional extras, imported only when a dataset uses them.
+- **Why.** The capabilities are the same `COUNT`/`MAX` queries on every SQL engine, so writing them once removes duplication and makes identifier quoting consistent. Extras keep the core install small (the Snowflake and BigQuery clients are large).
+- **Alternatives considered.** SQLAlchemy dialects for every engine (another abstraction layer, and Snowflake/BigQuery dialects are third-party). One package per adapter (more release overhead than five small modules justify).
+- **Trade-off.** A SQL engine with unusual semantics must override the base methods.
+- **Revisit when.** An adapter needs pushdown beyond these aggregates (sampling, partition filters); add it to the Protocol as a new capability.

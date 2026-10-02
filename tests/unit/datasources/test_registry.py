@@ -11,6 +11,7 @@ from sentinel.datasources import (
     register_data_source,
 )
 from sentinel.datasources import registry as registry_module
+from sentinel.datasources._common import ConfigReferenceError
 
 
 @pytest.fixture(autouse=True)
@@ -124,3 +125,48 @@ def test_registering_a_duplicate_source_type_raises() -> None:
 
             def columns(self) -> dict[str, str]:
                 return {}
+
+
+def _recording_source() -> type[Any]:
+    @register_data_source
+    class RecordingSource:
+        source_type: ClassVar[str] = "recording"
+
+        def __init__(self, config_reference: str | None) -> None:
+            self.config_reference = config_reference
+
+        def row_count(self) -> int:
+            return 0
+
+        def null_count(self, column: str) -> int:
+            return 0
+
+        def distinct_count(self, column: str) -> int:
+            return 0
+
+        def max_value(self, column: str) -> Any:
+            return None
+
+        def columns(self) -> dict[str, str]:
+            return {}
+
+    return RecordingSource
+
+
+def test_env_var_references_are_expanded_before_construction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _recording_source()
+    monkeypatch.setenv("WAREHOUSE_PASSWORD", "s3cret")
+
+    source = get_data_source("recording", "db://etl:${WAREHOUSE_PASSWORD}@host/db?table=t")
+
+    assert source.config_reference == "db://etl:s3cret@host/db?table=t"  # type: ignore[attr-defined]
+
+
+def test_an_unset_env_var_fails_with_its_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    _recording_source()
+    monkeypatch.delenv("WAREHOUSE_PASSWORD", raising=False)
+
+    with pytest.raises(ConfigReferenceError, match="WAREHOUSE_PASSWORD"):
+        get_data_source("recording", "db://etl:${WAREHOUSE_PASSWORD}@host/db?table=t")

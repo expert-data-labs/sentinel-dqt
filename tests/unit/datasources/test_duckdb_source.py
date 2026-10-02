@@ -1,12 +1,14 @@
-"""DuckDBSource against real CSV files on disk."""
+"""DuckDBSource against real CSV, Parquet and JSON files on disk."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
+import duckdb
 import pytest
 
-from sentinel.datasources.duckdb_source import DuckDBSource, _canonical_type
+from sentinel.datasources._common import ConfigReferenceError
+from sentinel.datasources.duckdb_source import DuckDBSource, _canonical_type, _reader_for
 
 
 def _write_csv(tmp_path: Path, content: str) -> str:
@@ -138,3 +140,55 @@ def test_max_value_on_all_null_timestamp_column_is_still_none(tmp_path: Path) ->
     source = DuckDBSource(path)
 
     assert source.max_value("updated_at") is None
+
+
+# --- file formats -----------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("path", "reader"),
+    [
+        ("data/orders.csv", "read_csv_auto"),
+        ("data/orders.tsv", "read_csv_auto"),
+        ("data/orders.csv.gz", "read_csv_auto"),
+        ("s3://bucket/orders/*.parquet", "read_parquet"),
+        ("data/events.jsonl", "read_json_auto"),
+        ("data/EVENTS.JSON", "read_json_auto"),
+    ],
+)
+def test_reader_is_chosen_by_extension(path: str, reader: str) -> None:
+    assert _reader_for(path) == reader
+
+
+def test_unknown_extension_is_rejected() -> None:
+    with pytest.raises(ConfigReferenceError, match="extensions"):
+        _reader_for("data/orders.xlsx")
+
+
+def test_parquet_files_are_read(tmp_path: Path) -> None:
+    path = tmp_path / "orders.parquet"
+    rows = "SELECT * FROM (VALUES (1, 'a'), (2, NULL)) t(id, name)"
+    duckdb.execute(f"COPY ({rows}) TO '{path}' (FORMAT parquet)")
+    source = DuckDBSource(str(path))
+
+    assert source.row_count() == 2
+    assert source.null_count("name") == 1
+    assert source.columns() == {"id": "integer", "name": "string"}
+
+
+def test_json_lines_files_are_read(tmp_path: Path) -> None:
+    path = tmp_path / "events.jsonl"
+    path.write_text(
+        '{"id": 1, "kind": "click"}\n{"id": 2, "kind": null}\n{"id": 2, "kind": "view"}\n'
+    )
+    source = DuckDBSource(str(path))
+
+    assert source.row_count() == 3
+    assert source.null_count("kind") == 1
+    assert source.distinct_count("id") == 2
+
+
+def test_globs_read_every_matching_file(tmp_path: Path) -> None:
+    for i in (1, 2):
+        (tmp_path / f"part-{i}.csv").write_text(f"id\n{i}\n{i + 10}\n")
+    assert DuckDBSource(str(tmp_path / "part-*.csv")).row_count() == 4

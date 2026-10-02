@@ -1,7 +1,10 @@
-# Local Postgres for the Postgres tests: `docker compose up -d`
-#   postgresql://sentinel:sentinel@localhost:5432/sentinel?table=<name>
-# CI starts its own Postgres with the same credentials. Tests create their
-# own tables.
+# Local databases for development and tests: `docker compose up -d`
+#   postgres: Sentinel's store, and a data source
+#             postgresql://sentinel:sentinel@localhost:5432/sentinel?table=<name>
+#   mysql:    mysql://sentinel:sentinel@localhost:3306/sentinel?table=<name>
+#   mongodb:  mongodb://localhost:27017/<database>?collection=<name>
+# CI starts the same services with the same credentials. Tests create their own
+# tables and collections.
 services:
   postgres:
     image: postgres:16-alpine
@@ -16,3 +19,28 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: sentinel
+      MYSQL_USER: sentinel
+      MYSQL_PASSWORD: sentinel
+      MYSQL_ROOT_PASSWORD: sentinel
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -usentinel -psentinel"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10

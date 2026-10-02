@@ -1,11 +1,13 @@
 """Maps a source_type string to its DataSource class.
 
 Unlike rules and strategies, a DataSource is constructed with the dataset's
-``config_reference``.
+``config_reference``. ``${ENV_VAR}`` references in it are expanded here, just
+before construction, so secrets never sit in YAML or in Sentinel's store.
 """
 
 from __future__ import annotations
 
+from sentinel.datasources._common import expand_env
 from sentinel.datasources.base import DataSource
 
 _REGISTRY: dict[str, type[DataSource]] = {}
@@ -33,7 +35,8 @@ def register_data_source(cls: type[DataSource]) -> type[DataSource]:
 def get_data_source(source_type: str, config_reference: str | None) -> DataSource:
     """Create the DataSource for ``source_type`` with ``config_reference``.
 
-    Raises DataSourceNotRegisteredError for an unknown type.
+    Raises DataSourceNotRegisteredError for an unknown type, and
+    ConfigReferenceError if a referenced environment variable isn't set.
     """
     try:
         source_cls = _REGISTRY[source_type]
@@ -42,4 +45,5 @@ def get_data_source(source_type: str, config_reference: str | None) -> DataSourc
         raise DataSourceNotRegisteredError(
             f"No data source registered for type {source_type!r}. Known types: {known}"
         ) from None
-    return source_cls(config_reference)  # type: ignore[call-arg]
+    resolved = expand_env(config_reference) if config_reference is not None else None
+    return source_cls(resolved)  # type: ignore[call-arg]

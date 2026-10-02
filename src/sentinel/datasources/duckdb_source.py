@@ -1,18 +1,20 @@
-"""DuckDBSource: reads a local CSV file through DuckDB.
+"""DuckDBSource: reads data files through DuckDB.
 
-Each method runs one query against ``read_csv_auto(path)``. Identifiers are
-interpolated into SQL because placeholders only bind values; the path and column
-names come from local config, not untrusted input.
+``config_reference`` is a path or glob to CSV, Parquet or JSON files, locally
+or on S3 (``s3://bucket/orders/*.parquet``). The reader is chosen by file
+extension. S3 credentials come from the standard AWS credential chain
+(environment variables, ``~/.aws``, instance roles).
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 import duckdb
 
+from sentinel.datasources._common import ConfigReferenceError
 from sentinel.datasources.registry import register_data_source
+from sentinel.datasources.sql_base import SqlDataSource
 
 _DUCKDB_INTEGER_TYPES = {
     "TINYINT",
@@ -26,7 +28,19 @@ _DUCKDB_INTEGER_TYPES = {
     "UBIGINT",
 }
 _DUCKDB_FLOAT_TYPES = {"FLOAT", "DOUBLE", "REAL"}
-_DUCKDB_STRING_TYPES = {"VARCHAR", "CHAR", "TEXT", "BPCHAR"}
+_DUCKDB_STRING_TYPES = {"VARCHAR", "CHAR", "TEXT", "BPCHAR", "UUID"}
+
+# File extension -> DuckDB table function.
+_READERS = {
+    ".csv": "read_csv_auto",
+    ".tsv": "read_csv_auto",
+    ".txt": "read_csv_auto",
+    ".parquet": "read_parquet",
+    ".json": "read_json_auto",
+    ".jsonl": "read_json_auto",
+    ".ndjson": "read_json_auto",
+}
+_REMOTE_PREFIXES = ("s3://", "s3a://", "s3n://")
 
 
 def _canonical_type(duckdb_type: str) -> str:
@@ -53,18 +67,23 @@ def _canonical_type(duckdb_type: str) -> str:
     return "unknown"
 
 
-def _as_utc(value: Any) -> Any:
-    """Return datetimes as UTC (naive ones are assumed UTC); pass other values
-    through.
-    """
-    if isinstance(value, datetime):
-        return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
-    return value
+def _reader_for(path: str) -> str:
+    """The DuckDB table function for ``path``, chosen by extension (ignoring .gz etc.)."""
+    name = path.lower()
+    for compression in (".gz", ".zst"):
+        name = name.removesuffix(compression)
+    for extension, reader in _READERS.items():
+        if name.endswith(extension):
+            return reader
+    supported = ", ".join(sorted(_READERS))
+    raise ConfigReferenceError(
+        f"Can't tell the file format of {path!r}; use one of these extensions: {supported}"
+    )
 
 
 @register_data_source
-class DuckDBSource:
-    """Reads one CSV file. ``config_reference`` is the file path.
+class DuckDBSource(SqlDataSource):
+    """Reads CSV, Parquet or JSON files (local or S3). Each query re-reads the files.
 
     A missing file surfaces as DuckDB's own error on the first query.
     """
@@ -74,34 +93,27 @@ class DuckDBSource:
     def __init__(self, config_reference: str | None) -> None:
         if config_reference is None:
             raise ValueError(
-                "DuckDBSource requires a Dataset with config_reference set "
-                "to a CSV file path"
+                "DuckDBSource requires a Dataset with config_reference set to a file path, "
+                "e.g. 'data/orders.csv' or 's3://bucket/orders/*.parquet'"
             )
         self._path = config_reference
+        self._reader = _reader_for(config_reference)
         self._conn = duckdb.connect(":memory:")
+        if config_reference.startswith(_REMOTE_PREFIXES):
+            # httpfs and aws extensions are auto-installed on first use.
+            self._conn.execute(
+                "CREATE OR REPLACE SECRET sentinel_s3 (TYPE s3, PROVIDER credential_chain)"
+            )
+
+    def _table(self) -> str:
+        path = self._path.replace("'", "''")
+        return f"{self._reader}('{path}')"
 
     def _scalar(self, query: str) -> Any:
         row = self._conn.execute(query).fetchone()
-        assert row is not None  # an aggregate query always returns exactly one row
+        assert row is not None  # aggregates always return one row
         return row[0]
 
-    def _source(self) -> str:
-        return f"read_csv_auto('{self._path}')"
-
-    def row_count(self) -> int:
-        return int(self._scalar(f"SELECT count(*) FROM {self._source()}"))
-
-    def null_count(self, column: str) -> int:
-        return int(
-            self._scalar(f'SELECT count(*) FROM {self._source()} WHERE "{column}" IS NULL')
-        )
-
-    def distinct_count(self, column: str) -> int:
-        return int(self._scalar(f'SELECT count(DISTINCT "{column}") FROM {self._source()}'))
-
-    def max_value(self, column: str) -> Any:
-        return _as_utc(self._scalar(f'SELECT max("{column}") FROM {self._source()}'))
-
     def columns(self) -> dict[str, str]:
-        rows = self._conn.execute(f"DESCRIBE SELECT * FROM {self._source()}").fetchall()
+        rows = self._conn.execute(f"DESCRIBE SELECT * FROM {self._table()}").fetchall()
         return {row[0]: _canonical_type(row[1]) for row in rows}

@@ -20,7 +20,7 @@ policies/orders.yaml   # what "good data" means for it
 ```yaml
 id: orders                       # stable key for all history
 name: orders                     # display name; `sentinel history` uses this
-source_type: duckdb              # duckdb | postgres
+source_type: duckdb              # duckdb | postgres | mysql | snowflake | bigquery | mongodb
 environment: local
 owner: data-platform-team
 criticality: high                # low | medium | high | critical
@@ -31,8 +31,14 @@ config_reference: data/orders.csv
 
 | `source_type` | `config_reference` |
 |---|---|
-| `duckdb` | Path to a CSV file, relative to the working directory |
-| `postgres` | `postgresql://user:password@host:5432/dbname?table=orders` |
+| `duckdb` | Path or glob to CSV, Parquet or JSON files, relative to the working directory, or `s3://...` |
+| `postgres` | `postgresql://user:${PG_PASSWORD}@host:5432/dbname?table=orders` |
+| `mysql` | `mysql://user:${MYSQL_PASSWORD}@host:3306/dbname?table=orders` |
+| `snowflake` | `snowflake://user:${SNOWFLAKE_PASSWORD}@account/DATABASE/SCHEMA?warehouse=WH&table=orders` |
+| `bigquery` | `bigquery://project/dataset?table=orders` |
+| `mongodb` | `mongodb://user:${MONGO_PASSWORD}@host:27017/dbname?collection=orders` |
+
+`${NAME}` is replaced with the environment variable `NAME` when the run starts, so passwords stay out of YAML. Details per source: [Data Sources](data-sources.md#configuration-per-source).
 
 ## Policy file
 

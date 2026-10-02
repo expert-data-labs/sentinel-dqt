@@ -21,7 +21,7 @@ Sentinel separates four concerns that pipelines usually tangle together:
 | **What counts as acceptable** | A Threshold Strategy | `static` (fixed bound) or `median_mad` (learned from history) |
 | **What happened before** | Persisted runtime facts | Every Metric, verdict and Incident, queryable later |
 
-Keeping these apart is what lets a threshold evolve from a fixed number to a statistical model without touching the rule, and what lets one rule implementation work against DuckDB and Postgres alike.
+Keeping these apart is what lets a threshold evolve from a fixed number to a statistical model without touching the rule, and what lets one rule implementation work against files, SQL databases, warehouses and MongoDB alike.
 
 ---
 

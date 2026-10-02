@@ -10,7 +10,14 @@ from __future__ import annotations
 
 def register_all() -> None:
     """Import all built-in implementations so they register themselves."""
-    from sentinel.datasources import duckdb_source, postgres_source  # noqa: F401
+    from sentinel.datasources import (  # noqa: F401
+        bigquery_source,
+        duckdb_source,
+        mongodb_source,
+        mysql_source,
+        postgres_source,
+        snowflake_source,
+    )
     from sentinel.rules import (  # noqa: F401
         freshness,
         null_rate,

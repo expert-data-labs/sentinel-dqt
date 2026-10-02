@@ -123,6 +123,7 @@ Different datasets run in parallel. Two runs of the **same** dataset are seriali
 | Strategies: `static` | every example |
 | Strategies: `percentage_deviation`, `statistical`, `median_mad`, `seasonal` | `signups` |
 | Data sources: CSV via DuckDB, Postgres | `customers`/`products`/`orders`/`signups`, `events` |
+| Other sources: Parquet/JSON/S3, MySQL, Snowflake, BigQuery, MongoDB | [Data Sources: configuration per source](components/data-sources.md#configuration-per-source) |
 | Blocking vs non-blocking rules, exit codes `0` and `2` | `products`, `orders` |
 | Store not migrated, exit code `3` | Run any `validate` against an empty database |
 | Severity (`info` to `critical`) and criticality (`low` to `critical`) | `products` (info, low), `customers` (medium), `orders` (high), `demo/` (critical) |
