@@ -1,19 +1,8 @@
-"""Tests for sentinel.registration.register_all().
+"""Tests for register_all().
 
-Deliberately does not use an isolated-registry fixture (contrast with
-tests/unit/rules/test_registry.py, tests/unit/thresholds/test_registry.py,
-and tests/unit/datasources/test_registry.py): register_all()'s imports are
-cached by Python after the first time any test module imports
-sentinel.rules.row_count/null_rate/uniqueness, sentinel.thresholds.static,
-or sentinel.datasources.duckdb_source directly (which the per-component
-unit tests do, on purpose, to test them in isolation from the registry).
-That means these real registrations are already process-global and
-permanent by the time any test runs, regardless of whether register_all()
-has been called yet in this file — so there is no meaningful "before
-register_all(), nothing is registered" state to assert within a shared
-pytest session. What *is* reliably true regardless of import order is
-asserted below instead: that register_all() covers every Milestone 1/2/4
-type, and that calling it more than once is safe.
+No registry isolation here: other tests import the real modules directly, so
+their registrations already exist. These tests check coverage and that repeated
+calls are safe.
 """
 
 from __future__ import annotations

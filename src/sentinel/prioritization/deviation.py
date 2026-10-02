@@ -1,26 +1,8 @@
-"""Deviation magnitude: how far off, in normalized terms, one ThresholdResult
-says a Metric's value was.
+"""Deviation ratio: how far a value was from normal, on one common scale.
 
-This is the one place in the codebase that knows each threshold strategy's
-own ``details`` JSON shape (percentage_deviation's ``deviation``/
-``max_deviation``; statistical/median_mad/seasonal's shared ``lower``/
-``upper``; static's ``actual``/``min``/``max``). Deliberately kept here, in
-the prioritization package, rather than pushed back into each
-ThresholdStrategy -- the milestone's own constraint is "do not put
-strategy-specific prioritization logic into individual ThresholdStrategies",
-and a single, isolated translator satisfies that without touching five
-already-shipped Milestone 4 files. See
-docs/architecture/0006-milestone-5-design.md Part 4 for the two designs
-considered and why this one was chosen.
-
-Every branch here reduces to the same normalized shape: 0.0 at the
-baseline/center, 1.0 exactly at the strategy's own tolerance edge, >1.0
-beyond it -- one comparable "how far off" number regardless of which
-strategy produced the underlying ThresholdResult, without hardcoding
-anything about what a particular metric_name (row_count, null_rate, ...)
-means. That's the "metric-aware but generic" approach the milestone brief
-asks for: genericity comes from operating on each strategy's own already-
-computed tolerance, not from a per-metric-name table.
+0.0 = at the baseline/center, 1.0 = exactly at the tolerance edge, >1.0 = beyond
+it. This is the only module that reads each strategy's ``details`` JSON, so
+strategies stay free of prioritization logic.
 """
 
 from __future__ import annotations
@@ -30,27 +12,16 @@ from typing import Any
 
 from sentinel.domain import ThresholdResult
 
-# Assigned when a strategy's own math leaves "how far off" mathematically
-# undefined -- PercentageDeviationStrategy's baseline == 0 with a nonzero
-# actual value, or a static/bound-based tolerance that collapses to a
-# zero-width edge. Reporting "no information" here would understate a
-# genuine jump-from-nothing as if it were unremarkable, so this is
-# deliberately a large, fixed ratio rather than None -- a documented
-# judgment call, per the milestone brief's own instruction to document
-# rather than hide an indeterminate case. 2.0 is twice "exactly at the
-# tolerance edge", already past the point sentinel.prioritization.scoring's
-# deviation_score saturates at.
+# Used when the ratio is undefined (zero baseline or zero-width tolerance).
+# Treated as a large deviation rather than "unknown"; 2.0 = maximum score.
 _UNDEFINED_BASELINE_RATIO = 2.0
 
 _BOUND_BASED_STRATEGIES = frozenset({"statistical", "median_mad", "seasonal"})
 
 
 def compute_deviation_ratio(result: ThresholdResult) -> float | None:
-    """A normalized deviation ratio for ``result``, or ``None`` when there
-    isn't enough information to compute one -- an unrecognized
-    ``strategy_type``, or a strategy that recorded no ``details``.
-    ``sentinel.prioritization.scoring`` documents its own explicit default
-    for the ``None`` case rather than this function silently guessing one.
+    """Normalized deviation for ``result``, or None for unknown strategies or
+    missing details.
     """
     if result.details is None:
         return None
@@ -70,8 +41,7 @@ def _percentage_deviation_ratio(details: dict[str, Any]) -> float:
     deviation = details.get("deviation")
     max_deviation = details.get("max_deviation")
     if deviation is None:
-        # baseline == 0, actual != 0 -- PercentageDeviationStrategy's own
-        # docstring documents this as mathematically undefined.
+        # baseline == 0 and actual != 0: undefined.
         return _UNDEFINED_BASELINE_RATIO
     if not max_deviation:
         return _UNDEFINED_BASELINE_RATIO
@@ -89,10 +59,7 @@ def _static_ratio(details: dict[str, Any]) -> float | None:
         return _relative_distance(actual, min_bound)
     if max_bound is not None and actual > max_bound:
         return _relative_distance(actual, max_bound)
-    # Within bounds: static only ever produces PASS or FAIL (never WARN),
-    # and IncidentPrioritizer only prioritizes non-PASS events, so this is
-    # dead code in practice today -- kept as a defensive, documented
-    # default rather than an unreachable assumption.
+    # Within bounds. Not reached today (passing events aren't prioritized).
     return 0.0
 
 
@@ -103,14 +70,10 @@ def _relative_distance(actual: float, bound: float) -> float:
 
 
 def _bound_based_ratio(details: dict[str, Any]) -> float | None:
-    """statistical/median_mad/seasonal all store ``lower``/``upper`` under
-    identical keys, and every one of their bounds is symmetric around a
-    center (``center +/- multiplier * spread``) -- so the midpoint of
-    ``lower``/``upper`` recovers that center without needing to know which
-    strategy-specific key (``mean`` vs. ``median``) it was stored under,
-    and without needing to know the strategy's own multiplier (``n_sigma``
-    vs. ``n_mad``) either. This is what lets one branch serve all three
-    bound-based strategies uniformly.
+    """Ratio for statistical, median_mad and seasonal.
+
+    Their bounds are symmetric, so the midpoint of lower/upper is the center and
+    half the width is the tolerance.
     """
     actual = details.get("actual")
     lower = details.get("lower")

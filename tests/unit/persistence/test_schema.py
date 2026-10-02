@@ -46,10 +46,7 @@ def test_ensure_schema_is_idempotent(tmp_path: Path) -> None:
 
 
 def test_foreign_keys_are_enforced_in_dependency_order(tmp_path: Path) -> None:
-    """A row inserted out of dependency order (a validation_run referencing
-    a dataset that doesn't exist) should fail — proves the tables were
-    actually created with the FK relationships intact, not just as bare
-    unconstrained tables."""
+    """A run referencing a missing dataset must fail, proving FKs exist."""
     conn = get_connection(tmp_path / "test.duckdb")
     ensure_schema(conn)
 
@@ -95,18 +92,9 @@ def test_quality_events_gains_a_details_column(tmp_path: Path) -> None:
 def test_ensure_schema_adds_the_details_column_to_a_pre_migration_database(
     tmp_path: Path,
 ) -> None:
-    """The real-world case this migration has to handle: a sentinel.duckdb
-    file created by an earlier Milestone (0-5), before ``incidents`` or
-    ``quality_events.details`` existed. ``CREATE TABLE IF NOT EXISTS``
-    alone would leave such a database's quality_events table exactly as
-    it was -- this proves the separate ALTER TABLE pass actually adds the
-    missing column to a table that already exists, not just to a
-    freshly-created one."""
+    """An older store without ``quality_events.details`` gets the column added."""
     conn = get_connection(tmp_path / "test.duckdb")
-    # Simulates the pre-Milestone-6 schema directly, without importing
-    # schema.py's own (now-updated) statements -- this table shape is
-    # frozen in time on purpose, to represent "what M0-M5 already wrote
-    # to disk", not "whatever schema.py currently says".
+    # The old quality_events shape, hard-coded so it doesn't follow schema.py.
     conn.execute(
         """
         CREATE TABLE quality_events (

@@ -47,7 +47,7 @@ def test_thresholds_with_equal_cut_points_raise() -> None:
         PriorityThresholds(warning_at=25, high_at=25, critical_at=75)
 
 
-# -- boundary tests (milestone brief Part 14: INFO/WARNING, WARNING/HIGH, HIGH/CRITICAL) --
+# -- priority boundaries --
 
 
 def test_boundary_just_below_warning_is_info() -> None:

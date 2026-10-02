@@ -58,9 +58,7 @@ def test_resolve_policy_missing_name_raises_policy_load_error(
 def test_resolve_dataset_and_policy_default_to_the_repo_convention_dirs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """With no env vars set, resolution falls back to ``datasets/`` and
-    ``policies/`` relative to the current working directory — the real,
-    non-test config files this milestone added at the repo root."""
+    """Without env vars, files are found in ``datasets/`` and ``policies/``."""
     monkeypatch.delenv("SENTINEL_DATASETS_DIR", raising=False)
     monkeypatch.delenv("SENTINEL_POLICIES_DIR", raising=False)
     monkeypatch.chdir(REPO_ROOT)

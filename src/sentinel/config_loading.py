@@ -1,14 +1,4 @@
-"""Shared machinery for loading a validated pydantic model from a YAML
-config file, with every failure mode wrapped into one caller-supplied
-exception type.
-
-Factored out once a second caller needed it (Milestone 2's dataset
-loader, below) rather than upfront — Milestone 1's policy_loader had this
-exact parse-and-wrap logic inline, and duplicating it for a second model
-type is what finally justified extracting it. sentinel.policy_loader.loader
-now builds on this too; its own observable behavior (what it raises, and
-when) is unchanged.
-"""
+"""Loads a YAML file into a validated pydantic model."""
 
 from __future__ import annotations
 
@@ -26,10 +16,8 @@ def load_yaml_model(
 ) -> _ModelT:
     """Read ``path`` as YAML and validate it against ``model_cls``.
 
-    Wraps every failure mode — an unreadable file, invalid YAML syntax, a
-    non-mapping top level, or a schema validation failure — into a single
-    ``error_cls(message)`` instance, so a caller can catch exactly one
-    exception type regardless of which stage failed.
+    Every failure (unreadable file, bad YAML, non-mapping top level, schema
+    error) is raised as ``error_cls`` so callers catch one exception type.
     """
     path = Path(path)
 

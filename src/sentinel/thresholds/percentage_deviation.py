@@ -1,14 +1,4 @@
-"""PercentageDeviationStrategy: judge a Metric by how far it deviates,
-in relative terms, from the mean of its own recent history.
-
-The first adaptive strategy (Milestone 4): unlike StaticThresholdStrategy,
-this one is meaningless without ``history`` — there's no fixed bound to
-fall back on, only "how different is this from what's normal for this
-rule lately." See docs/architecture/0005-milestone-4-design.md Part 3 for
-why the baseline is defined as the *mean* of history rather than the
-single most recent value: it's deterministic, uses more than one point of
-evidence, and gives ``min_history`` something real to guard.
-"""
+"""PercentageDeviationStrategy: relative change from the mean of recent history."""
 
 from __future__ import annotations
 
@@ -30,35 +20,20 @@ def _describe_expectation(metric_name: str, baseline: float, max_deviation: floa
 
 @register_threshold_strategy
 class PercentageDeviationStrategy:
-    """Judges a Metric by ``|actual - baseline| / |baseline| <= max_deviation``,
-    where ``baseline`` is the mean of the historical Metrics supplied.
+    """Pass if ``|actual - baseline| / |baseline| <= max_deviation``.
 
-    ``config.params``:
-        max_deviation (required): the largest acceptable relative
-            deviation from baseline, e.g. ``0.10`` for +/-10%.
-        min_history (default 1): the fewest historical Metrics required
-            before a baseline is trusted. Any positive value works
-            mathematically (even a single historical point has a mean),
-            but a caller declaring a higher floor is saying "don't judge
-            me against a baseline built from just one or two runs."
+    ``baseline`` is the mean of history.
 
-    Edge cases (docs/architecture/0005-milestone-4-design.md Part 6):
-        baseline == 0 and actual == 0: deviation is defined as 0.0 (PASS)
-            — a value that hasn't moved from an all-zero baseline hasn't
-            deviated, degenerate as that baseline is.
-        baseline == 0 and actual != 0: deviation is mathematically
-            undefined (division by zero) — any nonzero value is an
-            infinite relative change from a zero baseline. Rather than
-            raising (which would stop a whole validation run over one
-            rule) or silently passing (which would hide a real jump from
-            0 to something), this strategy reports FAIL with
-            ``details.deviation`` set to ``null`` and an explanation, so
-            the event is visible without pretending a percentage exists.
-        Negative baselines: the deviation formula
-            ``(actual - baseline) / baseline`` is sign-correct as long as
-            the comparison uses its absolute value, which is what this
-            strategy does — no separate case is needed for a negative
-            baseline.
+    Params:
+
+    - ``max_deviation`` (required), e.g. 0.10 for +/-10%
+    - ``min_history`` (default 1)
+
+    Edge cases:
+
+    - baseline 0, actual 0: deviation 0 (PASS)
+    - baseline 0, actual non-zero: FAIL with ``deviation: null`` and a note
+    - negative baseline: handled by comparing the absolute value
     """
 
     strategy_type: ClassVar[str] = "percentage_deviation"

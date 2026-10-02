@@ -84,10 +84,7 @@ def test_details_records_median_mad_bounds_and_actual() -> None:
 
 
 def test_is_far_less_disturbed_by_a_historical_outlier_than_statistical() -> None:
-    """The end-to-end version of _stats.py's own pure-math test: run both
-    real strategies (not just the shared helper) against the milestone
-    brief's Scenario D history and confirm the strategies disagree exactly
-    the way the design doc says they should."""
+    """Scenario D history: statistical misses the outlier, median/MAD catches it."""
     history = _history(1000.0, 1020.0, 980.0, 1010.0, 1005.0, 5000.0)
     outlier_sized_value = _metric(5000.0)
 

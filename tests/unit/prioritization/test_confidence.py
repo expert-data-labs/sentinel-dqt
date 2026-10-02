@@ -27,13 +27,7 @@ def test_confidence_is_bounded_between_zero_and_one() -> None:
 
 
 def test_static_has_no_sample_size_dependence() -> None:
-    """static has no history/sample-size concept -- confidence is the
-    same regardless of what its details contain, unlike an adaptive
-    strategy's n_history (edge case: confidence unavailable / not
-    statistically applicable). Consistency (consecutive failures) still
-    applies to static -- that's a separate, deliberate factor, exercised
-    by test_consecutive_failures_increase_confidence_but_are_capped.
-    """
+    """Static confidence doesn't depend on sample size (consistency still applies)."""
     small_violation = _result("static", {"actual": 5, "min": 1, "max": None})
     large_violation = _result("static", {"actual": 5000, "min": 1, "max": None})
     assert compute_confidence(small_violation, _NO_HISTORY) == compute_confidence(
@@ -42,16 +36,14 @@ def test_static_has_no_sample_size_dependence() -> None:
 
 
 def test_more_historical_samples_increases_confidence_for_adaptive_strategies() -> None:
-    """Monotonicity: holding strategy_type and consistency fixed, more
-    n_history should not decrease confidence."""
+    """More history never lowers confidence."""
     thin = _result("statistical", {"n_history": 2})
     rich = _result("statistical", {"n_history": 30})
     assert compute_confidence(rich, _NO_HISTORY) >= compute_confidence(thin, _NO_HISTORY)
 
 
 def test_thin_history_still_gets_a_real_but_reduced_confidence() -> None:
-    """Edge case: a very small (but valid) historical sample should be
-    scored as "less confident," never collapsed to (near) zero."""
+    """A small valid sample gives reduced, not near-zero, confidence."""
     result = _result("statistical", {"n_history": 2})
     assert compute_confidence(result, _NO_HISTORY) > 0.2
 
@@ -62,9 +54,7 @@ def test_missing_n_history_falls_back_to_the_floor_not_an_error() -> None:
 
 
 def test_consecutive_failures_increase_confidence_but_are_capped() -> None:
-    """Monotonicity: more consecutive failures should not decrease
-    confidence, but the bonus must not dominate (frequency scoring is
-    where a long streak's significance is meant to be felt)."""
+    """More consecutive failures raise confidence, up to a cap."""
     result = _result("statistical", {"n_history": 30})
     none = compute_confidence(result, summarize([Status.PASS]))
     some = compute_confidence(result, summarize([Status.FAIL] * 3))
@@ -84,10 +74,9 @@ def test_consecutive_failures_increase_confidence_but_are_capped() -> None:
 def test_strategy_robustness_ordering_from_milestone_4_results(
     weaker: str, stronger: str
 ) -> None:
-    """Base confidence ordering is informed by Milestone 4's own measured
-    confusion-matrix results (docs/experiments/milestone-4-results.md),
-    not invented -- seasonal >= median_mad >= statistical >=
-    percentage_deviation, all else held equal."""
+    """Base ordering: seasonal >= median_mad >= statistical >=
+    percentage_deviation.
+    """
     weaker_result = _result(weaker, {"n_history": 30})
     stronger_result = _result(stronger, {"n_history": 30})
     assert compute_confidence(stronger_result, _NO_HISTORY) >= compute_confidence(

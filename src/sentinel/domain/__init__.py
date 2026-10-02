@@ -1,10 +1,7 @@
-"""Domain objects: config-time definitions and run-time facts.
+"""Domain objects. Structure only, no behavior.
 
-No behavior lives here — only structure. Dataset is a pydantic model (an
-external-input boundary: registration fields are human-entered, FR-01).
-Metric, ValidationRun, QualityEvent, and ThresholdResult are frozen
-dataclasses: immutable facts produced by execution, with no external input
-to validate.
+Dataset and Policy are pydantic models (validated user input). Run-time facts
+(Metric, ValidationRun, QualityEvent, ThresholdResult) are frozen dataclasses.
 """
 
 from sentinel.domain.dataset import Criticality, Dataset

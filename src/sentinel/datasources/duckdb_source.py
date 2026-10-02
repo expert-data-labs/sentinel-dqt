@@ -1,28 +1,8 @@
-"""DuckDBSource: a DataSource adapter that queries a local CSV file
-through DuckDB's SQL engine.
+"""DuckDBSource: reads a local CSV file through DuckDB.
 
-Pulled forward from Milestone 3's slot (Project_Milestones.md lists the
-DuckDB adapter there) because Milestone 2's CLI had nothing to validate
-against without a working adapter — see
-docs/architecture/0003-milestone-2-architecture.md Part 2 for the full
-reasoning. Milestone 3 extends this adapter rather than replacing it:
-``columns()`` (schema introspection) and timezone-safe ``max_value`` are
-new here, added once ``FreshnessRule``/``SchemaValidationRule`` actually
-needed them — see docs/architecture/0004-milestone-3-architecture.md
-Part 3.
-
-Each DataSource method is one SQL query against ``read_csv_auto(path)`` —
-the file is never loaded into an in-memory table Sentinel manages. This is
-a different DuckDB connection from sentinel.persistence's own DuckDB-backed
-store: this one queries the dataset *being validated*, ephemeral and
-scoped to one instance; that one is Sentinel's durable operational
-history. See docs/architecture/0003-milestone-2-architecture.md Part 3.
-
-SQL here is built with plain string interpolation, not parameter binding
-— DuckDB's placeholders bind *values*, not identifiers or table/file
-sources, and both the file path and column names come from this
-process's own trusted local config (a Dataset's ``config_reference``, a
-RuleConfig's ``column``), never from an untrusted network caller.
+Each method runs one query against ``read_csv_auto(path)``. Identifiers are
+interpolated into SQL because placeholders only bind values; the path and column
+names come from local config, not untrusted input.
 """
 
 from __future__ import annotations
@@ -50,16 +30,10 @@ _DUCKDB_STRING_TYPES = {"VARCHAR", "CHAR", "TEXT", "BPCHAR"}
 
 
 def _canonical_type(duckdb_type: str) -> str:
-    """Maps one of DuckDB's native type strings (as returned by
-    ``DESCRIBE``, e.g. ``"BIGINT"``, ``"DECIMAL(18,3)"``,
-    ``"TIMESTAMP WITH TIME ZONE"``) to Sentinel's canonical vocabulary
-    (``DataSource.columns()``). ``DECIMAL``/``TIMESTAMP`` are matched by
-    prefix since DuckDB parameterizes both (``DECIMAL(p,s)``,
-    ``TIMESTAMP WITH TIME ZONE``) — everything else is an exact,
-    case-insensitive match. A type this doesn't recognize maps to
-    ``"unknown"`` rather than raising: an adapter's job is to report what
-    it saw, not to judge whether it's expected — that's
-    ``SchemaValidationRule``'s job, one layer up.
+    """Map a DuckDB type (from DESCRIBE) to a canonical type.
+
+    DECIMAL and TIMESTAMP match by prefix (they take parameters). Unrecognized
+    types map to "unknown".
     """
     normalized = duckdb_type.upper()
     if normalized.startswith("DECIMAL"):
@@ -80,11 +54,9 @@ def _canonical_type(duckdb_type: str) -> str:
 
 
 def _as_utc(value: Any) -> Any:
-    """Applies the DataSource.max_value timezone contract (Milestone 3
-    Part 3b): a ``datetime`` with no tzinfo is assumed UTC and stamped as
-    such; one with tzinfo is converted to UTC; anything else (a number, a
-    string, ``None``) passes through unchanged — the contract only
-    concerns timestamp values."""
+    """Return datetimes as UTC (naive ones are assumed UTC); pass other values
+    through.
+    """
     if isinstance(value, datetime):
         return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
     return value
@@ -92,13 +64,9 @@ def _as_utc(value: Any) -> Any:
 
 @register_data_source
 class DuckDBSource:
-    """Reads a single local CSV file through DuckDB's SQL engine.
+    """Reads one CSV file. ``config_reference`` is the file path.
 
-    ``config_reference`` is the path to that CSV file — the field
-    Milestone 0's Dataset model reserved for exactly this kind of
-    adapter-specific pointer. A missing or unreadable file surfaces as
-    whatever error DuckDB itself raises when the first query runs — there
-    is no Sentinel-specific wrapper adding value over that.
+    A missing file surfaces as DuckDB's own error on the first query.
     """
 
     source_type: ClassVar[str] = "duckdb"

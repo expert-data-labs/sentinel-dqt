@@ -1,11 +1,8 @@
-"""Incident Prioritization (Milestone 5): turns a non-PASS QualityEvent
-into an explainable Incident by combining validation severity, dataset
-criticality, deviation magnitude, historical failure frequency, and
-anomaly confidence into one deterministic, weighted score.
+"""Incident prioritization.
 
-See docs/architecture/0006-milestone-5-design.md for the full design
-review this package implements, and IncidentPrioritizer (prioritizer.py)
-for the one entry point ValidationOrchestrator calls.
+Turns a non-PASS QualityEvent into an Incident with a weighted score built from
+severity, dataset criticality, deviation, failure frequency and confidence.
+Entry point: IncidentPrioritizer.
 """
 
 from sentinel.prioritization.config import (

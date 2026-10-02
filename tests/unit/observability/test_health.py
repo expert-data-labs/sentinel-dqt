@@ -1,7 +1,4 @@
-"""Pure-function tests for sentinel.observability.health -- no duckdb, no
-persistence, no fixtures: every case here is plain Python values in,
-plain Python values out, matching the "logic separate from I/O"
-discipline the module's own docstring describes."""
+"""Pure-function tests for sentinel.observability.health."""
 
 from __future__ import annotations
 
@@ -62,8 +59,7 @@ def test_dataset_health_takes_the_highest_of_several_incidents_on_one_run() -> N
 
 
 def test_dataset_health_ignores_info_priority_incidents() -> None:
-    """An INFO-priority incident on the latest run shouldn't degrade
-    health any more than Milestone 5 judged it worth escalating."""
+    """INFO incidents on the latest run don't degrade health."""
     assert derive_dataset_health(
         has_any_run=True, incident_priorities_on_latest_run=[IncidentPriority.INFO]
     ) is DatasetHealth.DEGRADED
@@ -76,9 +72,7 @@ def test_recurrence_is_first_occurrence_for_a_single_failure() -> None:
 
 
 def test_recurrence_is_first_occurrence_even_if_zero_failures_somehow_reported() -> None:
-    """Defensive floor: classify_recurrence is only ever called for pairs
-    that appeared in a failure-count aggregate (so failure_count >= 1 in
-    practice), but 0 shouldn't crash or be misclassified as RECURRING."""
+    """A count of 0 shouldn't crash or read as RECURRING."""
     assert classify_recurrence(failure_count=0, most_recent_evaluation_failed=False) is (
         RecurrenceClassification.FIRST_OCCURRENCE
     )
@@ -97,9 +91,7 @@ def test_recurrence_is_persistent_when_still_failing() -> None:
 
 
 def test_recurrence_boundary_at_exactly_two_failures() -> None:
-    """2 is the milestone's own stated boundary ('more than once') --
-    exactly 2, still passing now, must already read as RECURRING, not
-    require a 3rd failure first."""
+    """Exactly 2 failures (now passing) is already RECURRING."""
     assert classify_recurrence(failure_count=2, most_recent_evaluation_failed=False) is (
         RecurrenceClassification.RECURRING
     )

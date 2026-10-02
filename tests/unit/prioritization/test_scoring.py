@@ -42,9 +42,7 @@ def test_criticality_score_is_monotonic_across_the_four_tiers(
 
 
 def test_severity_and_criticality_are_commensurate() -> None:
-    """The two scales are identical on purpose (see scoring.py's own
-    comment) -- a HIGH severity rule and a HIGH criticality dataset must
-    contribute the same amount to the weighted sum."""
+    """HIGH severity and HIGH criticality score the same."""
     assert scoring.severity_score(Severity.HIGH) == scoring.criticality_score(Criticality.HIGH)
 
 
@@ -65,9 +63,7 @@ def test_deviation_score_saturates_at_twice_the_edge() -> None:
 
 
 def test_deviation_score_unknown_ratio_is_a_documented_moderate_default() -> None:
-    """Edge case: deviation magnitude unavailable (an unrecognized
-    strategy, or missing details) -- neither "no deviation" nor "maximal
-    deviation", a documented middle value."""
+    """Unknown deviation scores the moderate default."""
     assert scoring.deviation_score(None) == 50.0
 
 
@@ -81,9 +77,7 @@ def test_deviation_score_is_monotonic_in_ratio() -> None:
 
 
 def test_frequency_score_first_occurrence_is_low_regardless_of_anything_else() -> None:
-    """Scenario 7: a first-time failure must not be scored as if it were
-    frequent, even though summarize() itself does the "first occurrence"
-    detection -- scoring must respect that flag."""
+    """A first occurrence always scores low on frequency."""
     history = summarize([Status.PASS] * 50)  # 50 clean runs, this would be the first failure
     assert scoring.frequency_score(history) == 10.0
 
@@ -95,8 +89,7 @@ def test_frequency_score_scales_with_rate() -> None:
 
 
 def test_frequency_score_consecutive_bonus_is_capped() -> None:
-    """Edge case: a very long consecutive streak (persistent failure)
-    should not push the frequency component past 100."""
+    """A long streak can't push frequency past 100."""
     persistent = summarize([Status.FAIL] * 200)
     assert scoring.frequency_score(persistent) == 100.0
 
@@ -150,9 +143,7 @@ _EVEN_WEIGHTS = ScoreWeights(
 
 
 def test_aggregate_score_of_all_fifty_is_fifty_regardless_of_weights() -> None:
-    """A weighted sum of a constant, with weights summing to 1.0, must
-    equal that constant -- true for the defaults and true for any other
-    valid ScoreWeights."""
+    """All components at 50 give 50 for any valid weights."""
     assert scoring.aggregate_score(_components(), ScoreWeights()) == 50.0
     assert scoring.aggregate_score(_components(), _EVEN_WEIGHTS) == 50.0
 
@@ -166,10 +157,7 @@ def test_aggregate_score_is_bounded_zero_to_one_hundred() -> None:
 
 @pytest.mark.parametrize("field_name", _COMPONENT_FIELDS)
 def test_aggregate_score_is_monotonic_in_each_component_independently(field_name: str) -> None:
-    """Invariant test (milestone brief Part 15): raising one component
-    while holding the rest fixed must never lower the total -- true by
-    construction for a weighted sum with non-negative weights, but tested
-    explicitly here in case a future change breaks that."""
+    """Raising one component never lowers the total."""
     weights = ScoreWeights()
     low = scoring.aggregate_score(_components(**{field_name: 10.0}), weights)
     high = scoring.aggregate_score(_components(**{field_name: 90.0}), weights)

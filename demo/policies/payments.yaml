@@ -1,5 +1,4 @@
-# Phase 3 demo policy. Three rules with deliberately different severities
-# so the same dataset produces CRITICAL and HIGH incidents side by side.
+# Demo policy. Different severities so CRITICAL and HIGH incidents appear together.
 dataset: payments
 rules:
   - name: payment_count

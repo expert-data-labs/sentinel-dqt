@@ -1,13 +1,6 @@
-"""Exercises ObservabilityQueryService against a real (temp-file) DuckDB
-store, seeded via tests/unit/observability/fixtures.py -- the same
-"real connection, not mocked" level of test double
-tests/unit/persistence/test_history.py already uses for the identical
-reason: this is the layer that actually runs SQL.
+"""ObservabilityQueryService against a real temp DuckDB store (see fixtures.py).
 
-Every expected number below was hand-traced against fixtures.py's exact
-timestamps and values, not guessed -- see that module's docstring for the
-full scenario layout. Times are all relative to fixtures.AS_OF
-(2026-09-06 12:00:00 UTC):
+Times relative to fixtures.AS_OF (2026-09-06 12:00 UTC):
 
     payments/null_rate FAILs at t-10d, t-5d, t-2d, t-3h (4 total)
     payments/row_count FAILs once, at t-2d
@@ -274,10 +267,9 @@ def test_recurring_failures_classification_over_30_days(tmp_path: Path) -> None:
 def test_recurring_failures_within_24h_window_reflects_only_that_window(
     tmp_path: Path,
 ) -> None:
-    """null_rate has failed 4 times total, but only once within the last
-    24 hours (run D) -- within THIS window it's a first occurrence, even
-    though it's globally persistent. Window-scoped classification is
-    intentional (see health.classify_recurrence's own docstring)."""
+    """null_rate failed only once in the last 24h, so it's a first occurrence in
+    that window.
+    """
     service = _service(tmp_path)
     views = {(v.dataset_id, v.rule_name): v for v in service.recurring_failures(
         TimeWindow.LAST_24H, AS_OF

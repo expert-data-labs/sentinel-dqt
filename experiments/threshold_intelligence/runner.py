@@ -1,25 +1,12 @@
-"""Runs every registered adaptive strategy against every synthetic
-scenario (sentinel.experiments equivalent — see scenarios.py), scores
-each strategy's PASS/FAIL verdicts against the scenario's ground-truth
-anomaly labels, and renders the result as a Markdown report.
+"""Scores every threshold strategy against every synthetic scenario.
 
-This is Sentinel's answer to "when does an adaptive threshold
-outperform a static one": a real, re-runnable measurement, not an
-assertion. Run it directly with
-``python -m experiments.threshold_intelligence.runner`` from the repo
-root to regenerate docs/experiments/threshold-strategy-evaluation.md — doing so
-should reproduce that file byte-for-byte, since every scenario is seeded
-(see scenarios.py) and every strategy config below is fixed in this
-module, not tuned per scenario.
+Writes docs/experiments/threshold-strategy-evaluation.md. Run from the repo
+root:
 
-Deliberately bypasses Rule, DataSource, ValidationOrchestrator, and every
-persistence module: a strategy's ``evaluate()`` only needs a Metric, a
-ThresholdConfig, and a history of prior Metrics (see
-sentinel.thresholds.base.ThresholdStrategy), and this experiment is
-entirely about that one method's behavior. Building a real Dataset/
-DataSource/Policy around synthetic numbers that don't correspond to any
-actual rule would add machinery without adding anything this comparison
-needs.
+    python -m experiments.threshold_intelligence.runner
+
+Output is reproducible byte for byte. Calls ``evaluate()`` directly, without
+rules, data sources or persistence.
 """
 
 from __future__ import annotations
@@ -44,14 +31,10 @@ _RESULTS_PATH = (
 
 @dataclass(frozen=True)
 class ConfusionMatrix:
-    """One strategy's scored verdicts against one scenario's ground truth.
+    """One strategy's results on one scenario.
 
-    ``skipped`` (an addition to the classic four cells) is
-    every point a strategy declined to judge at all
-    (InsufficientHistoryError) rather than judging incorrectly — kept
-    separate from the four counted cells so a strategy that's merely
-    "still warming up" on a short scenario (see Scenario D's Seasonal
-    result) isn't scored as if it had guessed and guessed wrong.
+    ``skipped`` counts points the strategy couldn't judge yet (not enough
+    history); they aren't counted as right or wrong.
     """
 
     true_positives: int
@@ -71,11 +54,7 @@ class ConfusionMatrix:
 
     @property
     def false_positive_rate(self) -> float | None:
-        """None (not 0.0 or NaN) when no negative case was ever
-        evaluated -- "zero false positives out of zero opportunities to
-        have one" is not the same claim as "zero false positives out of
-        thirty," and reporting a bare 0.0 for both would erase that
-        difference."""
+        """None when there were no negative cases (not the same as a 0% rate)."""
         denominator = self.false_positives + self.true_negatives
         return self.false_positives / denominator if denominator else None
 
@@ -88,18 +67,10 @@ class ConfusionMatrix:
 def evaluate_strategy(
     points: Sequence[ScenarioPoint], strategy: ThresholdStrategy, config: ThresholdConfig
 ) -> ConfusionMatrix:
-    """Walks ``points`` in chronological order, evaluating each one
-    against only the points strictly before it in the sequence (its
-    "history so far" -- an expanding window, exactly mirroring how
-    ValidationOrchestrator grows a dataset's real history one run at a
-    time, never a fixed-size rolling window).
+    """Evaluate each point using all earlier points as history (expanding window).
 
-    A Status.FAIL verdict counts as "flagged"; PASS (the only other
-    status any built-in strategy produces) counts as "not flagged."
-    WARN is deliberately not treated as flagged here, since none of the
-    five registered strategies ever return it -- if a future WARN-
-    producing strategy is added to this comparison, this choice should
-    be revisited rather than assumed to still be right.
+    FAIL counts as flagged; PASS as not flagged. No built-in strategy returns
+    WARN.
     """
     true_positives = false_positives = true_negatives = false_negatives = skipped = 0
 
@@ -126,14 +97,8 @@ def evaluate_strategy(
     )
 
 
-# One fixed configuration per strategy, applied identically across every
-# scenario -- deliberately not tuned per scenario to flatter any one
-# strategy's result. `static`'s bound and `percentage_deviation`'s
-# max_deviation have no default in the strategy code (both params are
-# required), so a value has to be chosen here; every other value below
-# already matches that strategy's own built-in default (see each
-# strategy's own docstring) and is only spelled out for this module's own
-# readability.
+# One fixed config per strategy, used for every scenario (not tuned).
+# static and percentage_deviation need explicit values; the rest are defaults.
 STRATEGIES_UNDER_TEST: dict[str, tuple[ThresholdStrategy, ThresholdConfig]] = {
     "static": (
         StaticThresholdStrategy(),
@@ -159,12 +124,7 @@ STRATEGIES_UNDER_TEST: dict[str, tuple[ThresholdStrategy, ThresholdConfig]] = {
 
 
 def run_all() -> dict[str, dict[str, ConfusionMatrix]]:
-    """Every (scenario, strategy) combination -- the full Task 7
-    comparison, run uniformly rather than only each scenario's intended
-    "star" strategy, so a reader can also see where a strategy that
-    isn't the point of a given scenario still lands (e.g. Seasonal
-    against Scenario D, which has no repeated weekday to bucket by at
-    all -- see the results file for what that produces)."""
+    """Run every strategy on every scenario."""
     return {
         scenario_name: {
             strategy_name: evaluate_strategy(points, strategy, config)

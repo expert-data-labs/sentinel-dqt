@@ -1,7 +1,4 @@
-"""Pins InsufficientHistoryError's one load-bearing property: it is not
-interchangeable with ThresholdConfigError (see thresholds/base.py's own
-docstring for why conflating "bad policy" with "not enough history yet"
-would mislead whoever catches it)."""
+"""InsufficientHistoryError and ThresholdConfigError must stay distinct."""
 
 from __future__ import annotations
 

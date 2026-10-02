@@ -1,35 +1,9 @@
-"""The config-time definition half of a Policy: what an engineer declares in
-a YAML file (FR-02), before Sentinel does anything with it.
+"""Policy config: what a user declares in a policy YAML file.
 
-Policy, RuleConfig, and ThresholdConfig share one property that Dataset also
-has: every field here was typed by a human and needs pydantic's kind of
-validation, not the kind a frozen dataclass gives you.
-
-ThresholdConfig is the config-time half of the Threshold definition/
-evaluation split described in the Milestone 0 architecture doc. It is
-deliberately thin: a ``strategy`` name plus an open ``params`` mapping,
-rather than a field for every bound any strategy might ever need (``min``,
-``max``, ``max_duplicates``, ``max_delay_minutes`` today; a percentage band
-or a sigma multiplier once Milestone 4 lands). Making ThresholdConfig grow a
-field per strategy would mean editing this shared schema every time a new
-ThresholdStrategy is added — exactly the kind of central-branch-point the
-registry pattern (Task 4/5) exists to avoid. Interpreting and validating
-``params`` is each concrete ThresholdStrategy's own job, done against its
-own contract, when it runs.
-
-RuleConfig follows a related but distinct logic for its own rule-specific
-fields. ``column`` (Milestone 0/1: null_rate, uniqueness, freshness) and
-``expected_schema`` (Milestone 3: schema validation) are each a single
-dedicated optional field, not folded into an open ``params`` bag the way
-ThresholdConfig's bounds are. The difference is what each field means:
-ThresholdConfig's bounds are all "a number a strategy compares against" —
-genuinely interchangeable shape, just different names — while RuleConfig's
-``column`` is a scalar and ``expected_schema`` is a structured mapping;
-forcing both into one open dict buys nothing a dedicated field doesn't
-already give more simply, and costs a schema every rule type would need to
-independently document. A Rule implementation that needs one of these
-fields just reads it and raises a clear error if it's missing, same as a
-ThresholdStrategy would for a missing param.
+ThresholdConfig keeps a ``strategy`` name plus an open ``params`` dict, so a new
+strategy doesn't change this schema; each strategy validates its own params.
+RuleConfig uses dedicated optional fields (``column``, ``expected_schema``)
+because they have different shapes.
 """
 
 from __future__ import annotations
@@ -42,12 +16,10 @@ from sentinel.domain.events import Severity
 
 
 class ThresholdConfig(BaseModel):
-    """The declared, config-time half of a Threshold (see module docstring).
+    """Threshold settings for one rule.
 
-    Accepts the PRD's flat YAML shape directly —
-    ``{strategy: static, min: 1000}`` — and reshapes it internally into
-    ``strategy`` + ``params`` so every bound-carrying key doesn't need its
-    own field here.
+    Accepts the flat YAML form ``{strategy: static, min: 1000}`` and moves every
+    key except ``strategy`` into ``params``.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -65,21 +37,11 @@ class ThresholdConfig(BaseModel):
 
 
 class RuleConfig(BaseModel):
-    """One rule's declaration inside a Policy.
+    """One rule declared in a Policy.
 
-    ``rule_type`` is populated from the YAML key ``type`` (aliased) — kept
-    as ``rule_type`` internally so it matches the vocabulary the Rule
-    Protocol itself uses (``Rule.rule_type``, Task 4), rather than shadowing
-    the ``type`` builtin in every place this field gets read in code.
-
-    ``expected_schema`` (Milestone 3) backs the schema validation rule's
-    ``expected_schema: {column: type, ...}`` YAML shape — see the module
-    docstring for why this is a dedicated field rather than folded into a
-    generic ``params`` bag. Values are expected to be Sentinel's canonical
-    type vocabulary (``DataSource.columns()``); RuleConfig itself doesn't
-    validate against that vocabulary — same deferral-to-the-concrete-rule
-    reasoning ``column`` already follows, since only the rule that reads
-    this field knows what to do with an unrecognized value.
+    The YAML key ``type`` maps to ``rule_type`` (avoids shadowing the builtin).
+    ``expected_schema`` is used by the schema validation rule; the rule itself
+    validates its values.
     """
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)
@@ -94,18 +56,10 @@ class RuleConfig(BaseModel):
 
 
 class Policy(BaseModel):
-    """A versioned, declarative set of quality expectations for a dataset
-    (FR-02). ``dataset`` is the dataset's name/id, matching the PRD's
-    example YAML field of the same name — not a nested Dataset, since a
-    policy file is authored independently of, and validated against,
-    whatever Dataset registration already exists.
+    """A set of quality rules for one dataset.
 
-    ``version`` defaults to "unversioned" rather than being required: real
-    policy versioning is a Milestone 2 concern (a policy registry assigning
-    versions on save), not something a human is expected to hand-write in a
-    YAML file today. The field exists now because ValidationRun already
-    carries a ``policy_version`` — this is the placeholder that keeps that
-    shape stable until Milestone 2 gives it a real source.
+    ``dataset`` is the dataset's name/id. ``version`` defaults to "unversioned"
+    until policy versioning exists.
     """
 
     model_config = ConfigDict(frozen=True)

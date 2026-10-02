@@ -1,17 +1,7 @@
-"""SchemaValidationRule: how many structural differences exist between a
-dataset's actual columns and a policy's expected schema.
+"""SchemaValidationRule: number of differences between actual and expected columns.
 
-Reuses StaticThresholdStrategy exactly as it already exists (typically
-``max: 0`` -- any difference at all is a schema violation) -- this rule
-does not decide "passes schema validation" itself, matching every other
-Rule in Sentinel; see sentinel.rules.base.
-
-``Metric.value`` is the *count* of differences (missing + unexpected +
-type-mismatched columns, combined) so ``StaticThresholdStrategy`` can keep
-evaluating it exactly like any other numeric metric. *Which* columns
-differ, and how, is carried separately in ``Metric.details`` as a
-JSON-encoded structured diff -- see sentinel.domain.metric for why
-``details`` exists and why it's a JSON string rather than a nested field.
+``Metric.value`` is the count, so a static threshold (usually ``max: 0``)
+can judge it. ``Metric.details`` lists which columns differ, as JSON.
 """
 
 from __future__ import annotations
@@ -28,23 +18,16 @@ from sentinel.rules.registry import register_rule
 
 @register_rule
 class SchemaValidationRule:
-    """Compares ``source.columns()`` against ``config.expected_schema``
-    and measures how many columns differ.
+    """Compares ``source.columns()`` with ``config.expected_schema``.
 
-    Three kinds of difference, each independent of the others:
+    Counts three kinds of difference:
 
-    - **Missing**: a column ``expected_schema`` names that ``source``
-      doesn't have.
-    - **Unexpected**: a column ``source`` has that ``expected_schema``
-      doesn't name.
-    - **Type mismatch**: a column both sides agree exists, but whose
-      canonical type (see ``DataSource.columns()``) doesn't match what
-      ``expected_schema`` declares for it.
+    - missing: expected but not present
+    - unexpected: present but not expected
+    - type mismatch: present on both sides with different types
 
-    All three are counted into ``Metric.value``; all three are named, with
-    their concrete values, in ``Metric.details`` as JSON:
-    ``{"missing_columns": [...], "unexpected_columns": [...],
-    "type_mismatches": {"col": {"expected": ..., "actual": ...}, ...}}``.
+    ``details`` JSON: ``{"missing_columns": [...], "unexpected_columns": [...],
+    "type_mismatches": {"col": {"expected": ..., "actual": ...}}}``.
     """
 
     rule_type: ClassVar[str] = "schema"

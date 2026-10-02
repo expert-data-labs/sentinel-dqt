@@ -1,8 +1,4 @@
-"""Pins NullHistorySource's contract, and proves — via the
-HistoricalMetricsSource-typed variable each test assigns through — that it
-satisfies the Protocol structurally (checked by mypy, not at runtime;
-HistoricalMetricsSource has no @runtime_checkable marker, matching every
-other Protocol in this codebase — see tests/unit/datasources/test_base.py)."""
+"""NullHistorySource contract; typed assignments let mypy check the Protocol."""
 
 from __future__ import annotations
 
@@ -17,8 +13,7 @@ def test_returns_empty_sequence_regardless_of_arguments() -> None:
 
 
 def test_returns_empty_sequence_for_repeated_calls() -> None:
-    """Not stateful — calling it twice for the same key doesn't start
-    returning something different the second time."""
+    """Repeated calls keep returning empty."""
     source: HistoricalMetricsSource = NullHistorySource()
 
     first = source.get_history("orders", "row_count")

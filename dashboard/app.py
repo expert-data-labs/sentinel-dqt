@@ -1,25 +1,13 @@
-"""Sentinel's observability dashboard (Milestone 6).
+"""Sentinel observability dashboard (Streamlit).
 
 Run with:
 
     uv sync --group dashboard
     uv run streamlit run dashboard/app.py
 
-A single, self-contained Streamlit page -- deliberately not a multi-page
-app, no auth, no cloud deploy, no real-time streaming (per this
-milestone's own anti-goals). This file has NO business logic: every
-number it shows comes from ObservabilityQueryService, which is the only
-thing it imports from sentinel.observability. It never touches duckdb,
-never recomputes a threshold or a priority, and never reimplements
-anything sentinel.prioritization or sentinel.thresholds already decided
--- see docs/architecture/0007-milestone-6-design.md Part 8 for why
-Streamlit was chosen over extending the CLI, and Part 9 for why this file
-specifically has no automated test (the query layer underneath it does).
-
-Reads the same persistence store `sentinel validate`/`sentinel history`
-already write to (SENTINEL_DB_PATH, default ./sentinel.duckdb) -- run
-`sentinel validate <dataset>` a few times first so there's something to
-look at.
+Display only: all data comes from ObservabilityQueryService. Reads the store at
+SENTINEL_DB_PATH (default ./sentinel.duckdb), so run ``sentinel validate
+<dataset>`` a few times first.
 """
 
 from __future__ import annotations
@@ -50,10 +38,7 @@ _ALL_DATASETS = "(all datasets)"
 
 @st.cache_resource
 def _service() -> ObservabilityQueryService:
-    """One connection per Streamlit server process, reused across
-    reruns -- ``ensure_schema`` is idempotent (persistence/schema.py's own
-    docstring), so calling it here is safe even though `sentinel validate`
-    already called it too."""
+    """One cached connection per Streamlit process. ensure_schema is idempotent."""
     conn = get_connection()
     ensure_schema(conn)
     return ObservabilityQueryService(conn)

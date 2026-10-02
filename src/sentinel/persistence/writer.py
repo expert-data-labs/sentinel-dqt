@@ -1,16 +1,4 @@
-"""Writes a fully-mapped validation run to the persistence store.
-
-One function, shaped around exactly what ``sentinel validate`` needs --
-see docs/architecture/0003-milestone-2-architecture.md Part 6 for why
-this is a narrow function rather than a generic repository.
-
-Milestone 6 adds one more insert loop, ``incidents``, in the same
-transaction as everything else -- an Incident is only ever meaningful
-alongside the ValidationRun and QualityEvent that produced it, so it's
-never persisted independently of them. ``quality_events.details`` (also
-Milestone 6) is written as part of the existing quality_events insert,
-not a separate statement.
-"""
+"""Writes a ValidationRun and everything it produced to the store."""
 
 from __future__ import annotations
 
@@ -23,21 +11,10 @@ from sentinel.persistence.mapping import to_rows
 
 
 def persist_validation_run(conn: duckdb.DuckDBPyConnection, run: ValidationRun) -> uuid.UUID:
-    """Persist the run's dataset, the run itself, its metrics, its
-    quality events, and its incidents in one transaction, returning the
-    generated ``validation_runs.id``.
+    """Save the dataset, run, metrics, events and incidents in one transaction.
 
-    Takes only ``run`` -- its ``dataset`` field already carries the full
-    Dataset object (see mapping.py's own docstring for why ``to_rows``
-    doesn't accept a separate one).
-
-    The dataset row is upserted on every call (``ON CONFLICT ... DO
-    UPDATE``) rather than requiring a separate "register this dataset"
-    step first -- a full dataset registry is out of scope for this
-    milestone (docs/architecture/0003-milestone-2-architecture.md Part 1),
-    so the dataset row's source of truth stays whatever local Dataset
-    object the CLI just resolved from ``datasets/<name>.yaml``, refreshed
-    into the store on every run rather than registered once and drifting.
+    The dataset row is upserted each time, so it always matches the YAML the CLI
+    just loaded. Returns the new ``validation_runs.id``.
     """
     persistable = to_rows(run)
 

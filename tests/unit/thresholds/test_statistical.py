@@ -74,9 +74,7 @@ def test_no_history_raises() -> None:
 
 
 def test_configured_min_history_below_two_is_still_clamped_to_two() -> None:
-    """A standard deviation is undefined for fewer than two values --
-    this is a hard mathematical floor, not something a policy author can
-    configure away."""
+    """min_history below 2 is raised to 2 (stdev needs two values)."""
     strategy = StatisticalThresholdStrategy()
     with pytest.raises(InsufficientHistoryError):
         strategy.evaluate(_metric(1000.0), _config(min_history=1), _history(1000.0))

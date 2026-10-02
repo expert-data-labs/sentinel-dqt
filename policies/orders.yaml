@@ -1,21 +1,7 @@
-# The real (non-test) policy for `sentinel validate orders`.
+# Policy for `sentinel validate orders`.
 #
-# Milestone 3 adds the fourth and fifth rules below (`freshness`, `schema`)
-# now that both have Rule implementations (sentinel.rules.freshness,
-# sentinel.rules.schema_validation) -- previously this file's comment
-# noted freshness had no implementation yet; that's no longer true.
-#
-# `expected_schema` below reflects data/orders.csv's four columns
-# (order_id, customer_id, order_total, updated_at) mapped to Sentinel's
-# canonical type vocabulary (see DataSource.columns() in
-# src/sentinel/datasources/base.py). `order_total`'s canonical type is
-# listed as `decimal` on the assumption that DuckDB's CSV auto-detection
-# infers a DECIMAL type for this column's fixed-precision values
-# (59.99, 19.50, ...) -- this assumption is not empirically verified in
-# this environment (see docs/architecture/0004-milestone-3-architecture.md,
-# "Verification gap"). If a local `sentinel validate orders` run reports a
-# type_mismatch on order_total with actual: float, change this line to
-# `float` -- that's DuckDB reporting its real inferred type, not a bug.
+# If the schema rule reports order_total as `float` instead of `decimal`,
+# that's DuckDB's inferred type: change `decimal` to `float` below.
 dataset: orders
 rules:
   - name: row_count

@@ -1,10 +1,4 @@
-"""MedianMadStrategy: judge a Metric against a
-median +/- n_mad * scaled-MAD band computed from its history.
-
-The robust counterpart to StatisticalThresholdStrategy. Delegates the
-actual bound math to sentinel.thresholds._stats (median_mad_bounds) —
-see that module's docstring for the shared-helper reasoning.
-"""
+"""MedianMadStrategy: median +/- n_mad * scaled MAD of history."""
 
 from __future__ import annotations
 
@@ -32,35 +26,15 @@ def _describe_expectation(
 
 @register_threshold_strategy
 class MedianMadStrategy:
-    """Judges a Metric against
-    ``median(history) +/- n_mad * (1.4826 * MAD(history))``.
+    """Pass if the value is within ``median +/- n_mad * (1.4826 * MAD)``.
 
-    Why prefer this over Mean/StdDev when history might contain an
-    outlier: a mean is the arithmetic average of every value, so one
-    extreme historical point (a one-off outage, a bad backfill, a
-    logging glitch) can drag it arbitrarily far, and inflate the standard
-    deviation right along with it — widening the "acceptable" band until
-    the outlier itself looks normal and genuine anomalies of a similar
-    size stop being flagged. A median only asks "what's the middle
-    value," so one extreme point moves it by at most one rank position;
-    the Median Absolute Deviation, being itself a median (of absolute
-    deviations from the median), is similarly insensitive. See
-    docs/architecture/0005-milestone-4-design.md Part 6/7 for a worked
-    comparison — the identical history that pushes Mean/StdDev's bounds
-    wide enough to accept a 5x outlier leaves Median/MAD's bounds
-    correctly rejecting it.
+    Robust to outliers: one extreme past value can widen a mean/stdev band
+    enough to hide real anomalies, but barely moves the median and MAD.
 
-    ``config.params``:
-        n_mad (default 3.0): how many scaled-MAD units from the median
-            still count as acceptable — comparable in spirit to
-            ``n_sigma`` on the Statistical strategy (see
-            sentinel.thresholds._stats's scaling-constant note).
-        min_history (default 2): the fewest historical Metrics required.
-            Unlike Statistical, a median and MAD are mathematically
-            defined even for a single value (everything collapses to
-            that point) — the default of 2 is a judgment call that one
-            historical point is too thin an "everyday" to compare
-            against, not a hard mathematical floor.
+    Params:
+
+    - ``n_mad`` (default 3.0), comparable to ``n_sigma``
+    - ``min_history`` (default 2)
     """
 
     strategy_type: ClassVar[str] = "median_mad"

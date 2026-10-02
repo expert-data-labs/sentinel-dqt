@@ -9,10 +9,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    # Milestone 3: PostgresDataSource's tests need a real Postgres to run
-    # against. Same credentials as docker-compose.yml's local service, so
-    # SENTINEL_TEST_POSTGRES_DSN below is identical whether a contributor
-    # runs the suite locally (with `docker compose up -d` first) or in CI.
+    # Postgres for the Postgres tests (same credentials as docker-compose.yml).
     services:
       postgres:
         image: postgres:16-alpine
@@ -30,15 +27,11 @@ jobs:
 
     env:
       SENTINEL_TEST_POSTGRES_DSN: postgresql://sentinel:sentinel@localhost:5432/sentinel
-      # Pin the interpreter every `uv` command uses to the project's floor
-      # (requires-python >= 3.11), so CI catches 3.12+-only syntax/APIs.
+      # Test on the minimum supported Python.
       UV_PYTHON: "3.11"
 
     steps:
-      # checkout@v5+ and setup-uv@v7+ run on Node 24. setup-uv stopped
-      # publishing floating major tags at v8, so it is pinned to an exact
-      # release. The old setup-uv@v3 also used the retired cache service,
-      # which is what produced "Cache service responded with 400".
+      # Node 24 action versions. setup-uv has no major tags since v8.
       - uses: actions/checkout@v5
 
       - name: Install uv
@@ -49,8 +42,7 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
-      # --locked fails if uv.lock is out of date with pyproject.toml,
-      # instead of silently re-resolving dependencies in CI.
+      # --locked: fail if uv.lock is out of date.
       - name: Install dependencies
         run: uv sync --locked --all-groups
 

@@ -1,48 +1,14 @@
-"""Sentinel's command-line interface: ``sentinel validate`` and
-``sentinel history``.
+"""Sentinel CLI: ``sentinel validate`` and ``sentinel history``.
 
-``sentinel validate <dataset>`` resolves a Dataset and Policy from the
-filesystem convention (cli/resolution.py — both named ``<dataset>.yaml``
-in their own directory), builds the DataSource its Dataset declares
-(``source_type``), runs the existing ValidationOrchestrator unchanged,
-persists the outcome, and prints a summary.
+``validate <dataset>`` loads the dataset and policy YAML, runs the
+orchestrator, saves the run and prints a summary (with incident priority
+for failed rules). ``history <dataset>`` lists recent runs.
 
-``sentinel history <dataset> [--limit N]`` reads that persisted history
-back via persistence/reader.py — a thin projection (timestamp, status,
-which rules failed), not a reconstructed domain object graph; see
-docs/architecture/0003-milestone-2-architecture.md Part 5.
+Exit codes for ``validate`` respect non-blocking rules:
 
-The process exit code is a deliberately separate, blocking-aware
-judgment on top of ``ValidationRun.status`` — not a mirror of it. FR-12
-lets a policy mark a rule non-blocking: a FAIL there should still show up
-in the printed summary (nothing about a rule's true status is hidden),
-but it shouldn't fail a pipeline step that shells out to this command.
-See docs/architecture/0003-milestone-2-architecture.md Part 8 for the
-three-way split this implements:
-
-    exit 0 — no blocking event FAILs, and nothing WARNs.
-    exit 1 — something WARNs, but no blocking event FAILs.
-    exit 2 — a blocking event FAILs.
-
-This is the question Milestone 0 explicitly left open when it added
-``QualityEvent.blocking`` without folding it into ``ValidationRun.status``
-("that's a Milestone 2 CLI decision") — resolved here, at the one layer
-that actually needs to turn a judgment into a process outcome.
-
-Milestone 4: ``validate`` builds a ``DuckDBHistoricalMetricsSource`` from
-the same connection ``AppContext`` already opens and hands it to
-``ValidationOrchestrator``, so adaptive threshold strategies can see prior
-runs' Metrics. ``history`` (the CLI command, unrelated to the
-``history: Sequence[Metric]`` a ThresholdStrategy receives) is unaffected
-— it still reads only ``list_recent_runs``'s own projection.
-
-Milestone 5: ``validate`` also builds a ``DuckDBFailureHistorySource``
-from the same connection, hands it to ``ValidationOrchestrator`` alongside
-the Milestone 4 history source, and the printed summary gains one
-priority + top-reason line per non-passing event — the explainability
-Milestone 5 requires (docs/architecture/0006-milestone-5-design.md Part
-11), surfaced in the existing summary rather than a new command or
-dashboard.
+    0 - nothing failed or warned
+    1 - a warning, but no blocking failure
+    2 - a blocking rule failed
 """
 
 from __future__ import annotations
@@ -73,7 +39,7 @@ def _has_warning(events: tuple[QualityEvent, ...]) -> bool:
 
 
 def _exit_code(run: ValidationRun) -> int:
-    """The blocking-aware verdict described in this module's docstring."""
+    """Map a run to the exit code described in the module docstring."""
     if _has_blocking_failure(run.quality_events):
         return 2
     if _has_warning(run.quality_events):
@@ -86,18 +52,15 @@ def _headline(exit_code: int) -> str:
 
 
 def _format_value(value: float) -> str:
-    """Trim a metric's float value to a readable number of significant
-    figures for the terminal — 0.083333333333 is noise a person reading
-    a summary doesn't need."""
+    """Format a metric value to 4 significant figures."""
     return f"{value:.4g}"
 
 
 def _incident_for(run: ValidationRun, event: QualityEvent) -> Incident | None:
-    """The Incident matching ``event``, if any -- run.incidents has one
-    entry per non-PASS event, in the same relative order as
-    run.quality_events (see ValidationOrchestrator.run), but is shorter
-    than quality_events whenever some rules passed, so this can't be a
-    plain zip()."""
+    """Find the Incident for ``event``, if it has one.
+
+    Not a zip(): incidents only exist for non-PASS events.
+    """
     for incident in run.incidents:
         if incident.quality_event is event:
             return incident

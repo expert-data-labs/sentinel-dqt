@@ -18,9 +18,7 @@ from tests.unit.doubles import DummyThresholdStrategy
 
 @pytest.fixture(autouse=True)
 def _isolated_registry() -> Iterator[None]:
-    """Registering a dummy strategy for one test shouldn't leak into the
-    next, or into whatever real strategies Milestone 1 eventually registers
-    at import time. Save/clear/restore around every test in this module."""
+    """Save, clear and restore the registry around each test."""
     original = dict(registry_module._REGISTRY)
     registry_module._REGISTRY.clear()
     yield

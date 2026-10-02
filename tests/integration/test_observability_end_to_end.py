@@ -1,26 +1,7 @@
-"""Milestone 6's own required end-to-end flow:
+"""End-to-end: validate -> persist -> read back through ObservabilityQueryService.
 
-    Run validation -> Persist results -> Open observability query
-        -> Dashboard receives expected data
-
-Extends tests/integration/test_end_to_end.py's own pattern exactly: the
-real orders_m1.yaml policy, the real Milestone 1 rules and static
-threshold strategy via register_all(), a real ValidationOrchestrator
-against a FakeDataSource seeded from orders.csv -- no dummies anywhere in
-the domain/application layers. What's new here is the second half:
-persisting that real ValidationRun to a real (temp-file) DuckDB store
-and reading it back through ObservabilityQueryService, proving the
-whole pipeline this milestone's own diagram describes (Validation ->
-Metric -> QualityEvent -> Incident Priority -> Persistence ->
-Observability Queries -> Dashboard) actually holds together end to end.
-
-Every rule in orders_m1.yaml fails against the 12-row orders.csv fixture
-(see test_end_to_end.py's own docstring for why that's a deliberate,
-useful property of this fixture, not a bug) -- so every quality event
-here reaches IncidentPrioritizer for real (ValidationOrchestrator's
-default failure_history_source/prioritizer, exercised with zero
-injected history, exactly like every Milestone 0-4 call site that never
-opted into Milestone 5's new arguments).
+Same setup as test_end_to_end.py (every rule fails), plus a temporary DuckDB
+store.
 """
 
 from __future__ import annotations
@@ -81,8 +62,7 @@ def test_validate_then_persist_then_observe(tmp_path: Path) -> None:
     service = ObservabilityQueryService(conn)
     as_of = run.finished_at
 
-    # Dataset Health: a dataset with only failures is never HEALTHY or
-    # UNKNOWN (a run did happen), and it has a real incident priority.
+    # Dataset Health: only failures, so neither HEALTHY nor UNKNOWN.
     health = service.dataset_health("orders")
     assert health.dataset_id == "orders"
     assert health.health.value in {"degraded", "critical"}
@@ -98,9 +78,7 @@ def test_validate_then_persist_then_observe(tmp_path: Path) -> None:
     assert history[0].rules_failed == 3
     assert history[0].overall_status == "fail"
 
-    # Metric Trends: one point per rule, and the static strategy's
-    # Milestone-5 `details` addition survives the round trip through
-    # persistence -- never recomputed here, read back verbatim.
+    # Metric Trends: one point per rule; threshold details survive the round trip.
     row_count_trend = service.metric_trend("orders", "row_count", TimeWindow.LAST_30D, as_of)
     assert len(row_count_trend) == 1
     assert row_count_trend[0].value == 12.0
@@ -113,8 +91,7 @@ def test_validate_then_persist_then_observe(tmp_path: Path) -> None:
     assert len(null_rate_trend) == 1
     assert null_rate_trend[0].value == 1 / 12
 
-    # Failed Rules: all three rules, each having failed exactly once, each
-    # carrying whatever priority IncidentPrioritizer computed for it.
+    # Failed Rules: each rule failed once and has a priority.
     failed = {view.rule_name: view for view in service.failed_rules(TimeWindow.LAST_30D, as_of)}
     assert set(failed) == {"row_count", "customer_id_not_null", "unique_order_id"}
     for view in failed.values():
@@ -126,8 +103,7 @@ def test_validate_then_persist_then_observe(tmp_path: Path) -> None:
     assert len(incidents) == 3
     assert all(entry.top_reason is not None for entry in incidents)
 
-    # Recurring Failures: exactly one validation run has ever happened,
-    # so every pair is a first occurrence, never RECURRING or PERSISTENT.
+    # Recurring Failures: only one run, so all are first occurrences.
     recurring = service.recurring_failures(TimeWindow.LAST_30D, as_of)
     assert len(recurring) == 3
     assert all(

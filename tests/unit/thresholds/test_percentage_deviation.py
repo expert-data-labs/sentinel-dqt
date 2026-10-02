@@ -51,9 +51,7 @@ def test_exactly_at_max_deviation_passes() -> None:
 
 
 def test_negative_baseline_uses_absolute_relative_deviation() -> None:
-    """A rule whose value can legitimately go negative (e.g. a signed
-    balance metric) shouldn't need special config -- the formula is
-    symmetric in sign once the comparison uses abs()."""
+    """Negative baselines work without special config."""
     strategy = PercentageDeviationStrategy()
     history = _history(-100.0, -100.0)  # mean = -100.0
 
@@ -101,8 +99,7 @@ def test_insufficient_history_raises() -> None:
 
 
 def test_default_min_history_is_one() -> None:
-    """No min_history configured -> a single historical point is enough
-    to compute a baseline (see the strategy's own docstring)."""
+    """By default one historical point is enough."""
     strategy = PercentageDeviationStrategy()
     result = strategy.evaluate(_metric(1000.0), _config(max_deviation=0.10), _history(1000.0))
     assert result.status is Status.PASS

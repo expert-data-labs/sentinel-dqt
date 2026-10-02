@@ -1,11 +1,8 @@
-"""The Threshold Engine: pluggable evaluation of a Metric against expectations.
+"""Threshold engine: pluggable strategies that judge a Metric.
 
-A ThresholdStrategy is the runtime-behavior half of a Threshold; the
-config-time-definition half (ThresholdConfig) lives in sentinel.domain.policy.
-
-HistoricalMetricsSource (Milestone 4) is the abstraction a ThresholdStrategy's
-``history`` argument is supplied through — see sentinel.thresholds.history for
-why it lives beside the strategies rather than in sentinel.persistence.
+ThresholdConfig (in sentinel.domain.policy) is the config; a ThresholdStrategy
+is the behavior. HistoricalMetricsSource supplies past metrics to adaptive
+strategies.
 """
 
 from sentinel.thresholds.base import (

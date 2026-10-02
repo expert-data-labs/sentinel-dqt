@@ -10,9 +10,7 @@ from sentinel.domain import Metric, Status, ThresholdConfig
 from sentinel.thresholds.base import InsufficientHistoryError, ThresholdConfigError
 from sentinel.thresholds.seasonal import SeasonalBaselineStrategy
 
-# 2026-09-07 is a Monday; 2026-09-12 is a Saturday (confirmed via Python's
-# own calendar -- kept as a plain comment rather than computed, so a typo
-# here is caught by the very assertions that rely on it lining up).
+# 2026-09-07 is a Monday; 2026-09-12 is a Saturday.
 _MONDAY = datetime(2026, 9, 7, tzinfo=UTC)
 _TUESDAY = datetime(2026, 9, 8, tzinfo=UTC)
 _SATURDAY = datetime(2026, 9, 12, tzinfo=UTC)
@@ -27,20 +25,14 @@ def _config(**params: Any) -> ThresholdConfig:
     return ThresholdConfig(strategy="seasonal", params=params)
 
 
-# Small deterministic per-week variation (not all-identical values) so a
-# bucket's bounds are a real, nonzero-width interval rather than
-# collapsing to a single point -- a bucket of four identical values would
-# make "505 passes for Saturday" indistinguishable from "505 passes only
-# because it happens to equal every historical Saturday exactly."
+# Small per-week variation so each bucket has a non-zero width.
 _OFFSET_PATTERN = (-5.0, 0.0, 5.0, 0.0)
 
 
 def _weekly_history(
     weekday_values: float, weekend_values: float, weeks: int
 ) -> tuple[Metric, ...]:
-    """``weeks`` Mondays at ``weekday_values`` (+/- a small offset) and
-    ``weeks`` Saturdays at ``weekend_values`` (+/- the same offset) --
-    the Scenario B shape (weekday/weekend split)."""
+    """``weeks`` Mondays near ``weekday_values`` and Saturdays near ``weekend_values``."""
     history = []
     for week in range(weeks):
         offset = _OFFSET_PATTERN[week % len(_OFFSET_PATTERN)]
@@ -57,9 +49,7 @@ def test_confirms_the_weekday_fixtures_line_up() -> None:
 
 
 def test_evaluates_against_only_the_matching_weekday_bucket() -> None:
-    """1000 every Monday, 500 every Saturday. A Saturday value of 500 is
-    perfectly normal for Saturday, but would look like a huge deviation
-    against a global (all-days) mean -- this is Scenario B's whole point."""
+    """500 is normal for a Saturday even though the overall mean is higher."""
     strategy = SeasonalBaselineStrategy()
     history = _weekly_history(weekday_values=1000.0, weekend_values=500.0, weeks=4)
 
@@ -71,11 +61,7 @@ def test_evaluates_against_only_the_matching_weekday_bucket() -> None:
 
 
 def test_a_weekday_value_at_the_weekend_level_is_flagged() -> None:
-    """The same 500 evaluated as if it were a Monday -- normal for
-    Saturday, not normal for Monday -- is exactly the false positive a
-    seasonal baseline exists to distinguish from a genuine anomaly, in
-    the other direction: here it's correctly still a genuine anomaly for
-    the bucket it's actually being judged against."""
+    """The same 500 on a Monday is an anomaly."""
     strategy = SeasonalBaselineStrategy()
     history = _weekly_history(weekday_values=1000.0, weekend_values=500.0, weeks=4)
 
@@ -87,8 +73,7 @@ def test_a_weekday_value_at_the_weekend_level_is_flagged() -> None:
 
 
 def test_insufficient_history_in_the_current_bucket_raises_even_with_plenty_overall() -> None:
-    """Four Mondays of history but zero Tuesdays -- evaluating a Tuesday
-    metric must not silently borrow Monday's baseline."""
+    """Monday history must not be used for a Tuesday."""
     strategy = SeasonalBaselineStrategy()
     history = tuple(
         _metric(1000.0, _MONDAY + timedelta(weeks=week)) for week in range(4)

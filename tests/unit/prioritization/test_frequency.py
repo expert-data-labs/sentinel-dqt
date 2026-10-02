@@ -5,7 +5,7 @@ from sentinel.prioritization.frequency import summarize
 
 
 def test_empty_outcomes_is_first_occurrence() -> None:
-    """Edge case: zero historical observations."""
+    """No history: first occurrence."""
     history = summarize(())
     assert history.occurrences == 0
     assert history.total_observations == 0
@@ -15,9 +15,7 @@ def test_empty_outcomes_is_first_occurrence() -> None:
 
 
 def test_all_passes_is_first_occurrence() -> None:
-    """A rule that has always passed before: this is its first-ever
-    failure, even though it has plenty of observation history (Scenario 7:
-    a first-time failure should not be treated as recurring)."""
+    """Always passed before: this is the first failure."""
     history = summarize([Status.PASS, Status.PASS, Status.PASS])
     assert history.occurrences == 0
     assert history.is_first_occurrence is True
@@ -31,8 +29,7 @@ def test_warn_counts_as_an_occurrence_same_as_fail() -> None:
 
 
 def test_consecutive_failures_counts_the_leading_streak() -> None:
-    """Outcomes are most-recent-first: a streak of failures immediately
-    preceding now, broken by an older PASS."""
+    """Counts the most recent streak of failures, stopping at a PASS."""
     history = summarize([Status.FAIL, Status.FAIL, Status.FAIL, Status.PASS, Status.FAIL])
     assert history.consecutive_failures == 3
     assert history.occurrences == 4

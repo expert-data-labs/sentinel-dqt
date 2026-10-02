@@ -1,12 +1,6 @@
-"""NullRateRule: the fraction of rows in a column that are null.
+"""NullRateRule: fraction of rows where a column is null.
 
-Unlike row count, this rule can't avoid needing a column — "null rate of
-what?" has no dataset-wide answer. On an empty dataset it reports 0.0
-rather than raising a ZeroDivisionError: DataSource's own contract already
-treats an empty dataset as ordinary, not exceptional (row_count() and
-null_count() both simply return 0), so "no rows to violate the rule" is
-the reading that keeps an empty table a boring PASS/FAIL like any other,
-instead of a special always-erroring case.
+An empty dataset reports 0.0 instead of dividing by zero.
 """
 
 from __future__ import annotations

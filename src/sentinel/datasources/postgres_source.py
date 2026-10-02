@@ -1,26 +1,8 @@
-"""PostgresDataSource: a DataSource adapter that queries a table in a
-Postgres database.
+"""PostgresDataSource: reads one table in a Postgres database.
 
-Milestone 3's second adapter (docs/architecture/0004-milestone-3-architecture.md
-Part 3c), added specifically to prove FreshnessRule and SchemaValidationRule
-are backend-independent -- the same rule-level test cases run against both
-this and DuckDBSource (tests/unit/datasources/test_*_source.py's shared
-cases, wired up once docker-compose brings up a real Postgres for CI).
-
-``config_reference`` carries both a connection target and a table name as
-one string, since Dataset/Policy's schema wasn't changed for this
-milestone: a Postgres connection URL with the table name as a query
-parameter, e.g.
-``postgresql://user:password@host:5432/dbname?table=orders``. See
-_parse_config_reference below and the architecture doc for why a query
-parameter was chosen over, say, a second Dataset field.
-
-SQL here is built with plain string interpolation, not parameter binding
--- the same choice DuckDBSource makes and for the same reason: psycopg's
-placeholders bind *values*, not identifiers or table names, and both the
-table name and column names come from this process's own trusted local
-config (a Dataset's ``config_reference``, a RuleConfig's ``column``),
-never from an untrusted network caller.
+``config_reference`` is a connection URL with the table as a query
+parameter, e.g. ``postgresql://user:pw@host:5432/db?table=orders``.
+Identifiers are interpolated into SQL for the same reason as DuckDBSource.
 """
 
 from __future__ import annotations
@@ -47,16 +29,10 @@ _POSTGRES_STRING_TYPES = {
 
 
 def _canonical_type(postgres_type: str) -> str:
-    """Maps one of Postgres's ``information_schema.columns.data_type``
-    strings (e.g. ``"bigint"``, ``"numeric"``, ``"timestamp with time
-    zone"``) to Sentinel's canonical vocabulary (``DataSource.columns()``).
-    ``timestamp`` is matched by prefix, since Postgres reports both
-    ``"timestamp with time zone"`` and ``"timestamp without time zone"``
-    that way -- everything else is an exact, case-insensitive match. A
-    type this doesn't recognize maps to ``"unknown"`` rather than raising,
-    mirroring DuckDBSource's ``_canonical_type``: an adapter's job is to
-    report what it saw, not to judge whether it's expected -- that's
-    SchemaValidationRule's job, one layer up.
+    """Map an ``information_schema`` data_type to a canonical type.
+
+    Timestamps match by prefix (with or without time zone). Unrecognized types
+    map to "unknown".
     """
     normalized = postgres_type.lower()
     if normalized.startswith("timestamp"):
@@ -77,26 +53,19 @@ def _canonical_type(postgres_type: str) -> str:
 
 
 def _as_utc(value: Any) -> Any:
-    """Applies the DataSource.max_value timezone contract (Milestone 3
-    Part 3b) -- identical in substance to DuckDBSource's ``_as_utc``: a
-    ``datetime`` with no tzinfo is assumed UTC and stamped as such (the
-    case for a Postgres ``timestamp without time zone`` column); one with
-    tzinfo is converted to UTC (``timestamp with time zone``); anything
-    else passes through unchanged."""
+    """Return datetimes as UTC (naive ones are assumed UTC); pass other values
+    through.
+    """
     if isinstance(value, datetime):
         return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
     return value
 
 
 def _parse_config_reference(config_reference: str) -> tuple[str, str]:
-    """Splits a PostgresDataSource ``config_reference`` into a plain
-    Postgres connection URL (the ``table`` query parameter stripped out --
-    it isn't a libpq connection parameter, and passing it through would
-    make ``psycopg.connect`` fail) and the table name that parameter
-    named.
+    """Split ``config_reference`` into (connection URL, table name).
 
-    Raises ValueError if ``table`` is missing, at construction time rather
-    than as a confusing failure the first time a query runs.
+    ``table`` is removed from the URL because libpq rejects it. Raises
+    ValueError if it's missing.
     """
     parts = urlsplit(config_reference)
     query = parse_qs(parts.query, keep_blank_values=True)
@@ -117,13 +86,9 @@ def _parse_config_reference(config_reference: str) -> tuple[str, str]:
 
 @register_data_source
 class PostgresDataSource:
-    """Reads a single table in a Postgres database.
+    """Reads one Postgres table.
 
-    ``config_reference`` is the connection-URL-plus-table-parameter string
-    described in the module docstring. A missing/unreachable database or
-    nonexistent table surfaces as whatever error psycopg itself raises --
-    the same "no Sentinel-specific wrapper" choice DuckDBSource makes for
-    a missing CSV file.
+    Connection and missing-table errors surface as psycopg's own errors.
     """
 
     source_type: ClassVar[str] = "postgres"
@@ -137,8 +102,7 @@ class PostgresDataSource:
             )
         connection_url, table = _parse_config_reference(config_reference)
         self._table = table
-        # autocommit=True: every DataSource method is a single read-only
-        # SELECT: no reason to hold an open transaction across calls.
+        # Read-only single SELECTs: no need to hold a transaction open.
         self._conn = psycopg.connect(connection_url, autocommit=True)
 
     def _scalar(self, query: str) -> Any:

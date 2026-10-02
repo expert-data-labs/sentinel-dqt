@@ -1,7 +1,7 @@
-"""The Rule Engine: reusable, registered implementations of quality checks.
+"""Rule engine: registered quality checks.
 
-A Rule computes a Metric from a DataSource. It never decides pass/fail —
-that judgment belongs to a ThresholdStrategy (see sentinel.thresholds).
+A Rule computes a Metric from a DataSource. Pass/fail is decided by a
+ThresholdStrategy, not by the rule.
 """
 
 from sentinel.rules.base import Rule, RuleConfigError

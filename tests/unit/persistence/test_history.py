@@ -1,10 +1,4 @@
-"""Exercises DuckDBHistoricalMetricsSource against a real (temp-file)
-DuckDB store, seeded via persist_validation_run exactly the way
-test_writer.py seeds its own fixtures — this is the layer that actually
-writes/reads the ``metrics``/``validation_runs`` tables, so a real
-connection is the right level of test double here (contrast
-tests/unit/thresholds/test_history.py, which is pure in-memory because
-NullHistorySource has no persistence to exercise)."""
+"""DuckDBHistoricalMetricsSource against a real temp DuckDB store."""
 
 from __future__ import annotations
 
@@ -49,10 +43,7 @@ def _seed_metric(
     value: float,
     computed_at: datetime,
 ) -> None:
-    """Persists one validation run whose sole QualityEvent wraps exactly
-    the Metric a test wants to see come back out of get_history() —
-    started_at/finished_at are irrelevant to history retrieval, so they're
-    just pinned to computed_at rather than given their own parameter."""
+    """Save one run whose only event wraps ``metric``."""
     metric = Metric(metric_name=metric_name, value=value, computed_at=computed_at)
     threshold_result = ThresholdResult(status=Status.PASS, expected="n/a", strategy_type="static")
     event = QualityEvent(

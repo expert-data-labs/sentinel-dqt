@@ -1,18 +1,7 @@
-"""DuckDBFailureHistorySource: the concrete, DuckDB-backed implementation of
-sentinel.prioritization.history.FailureHistorySource.
+"""DuckDB-backed FailureHistorySource.
 
-Lives here, not in sentinel.prioritization, for the same reason
-persistence/history.py doesn't live in sentinel.thresholds: so
-sentinel.prioritization never imports duckdb (see
-sentinel.prioritization.history's own docstring).
-
-Queries the same ``quality_events`` table persistence/writer.py already
-populates, joined to ``metrics`` (for ``metric_name``) and
-``validation_runs`` (for ``dataset_id`` and ordering by ``computed_at``) --
-no schema migration for Milestone 5, exactly like Milestone 4's
-DuckDBHistoricalMetricsSource needed none. Every column this query reads
-(``quality_events.status``, ``metrics.metric_name``,
-``validation_runs.dataset_id``) has been persisted since Milestone 2.
+Reads past statuses from ``quality_events``. Lives here so
+sentinel.prioritization never imports duckdb.
 """
 
 from __future__ import annotations
@@ -27,16 +16,8 @@ _DEFAULT_LIMIT = 90
 
 
 class DuckDBFailureHistorySource:
-    """A FailureHistorySource backed by Sentinel's own persistence store
-    (persistence/engine.py -- always DuckDB; see
-    DuckDBHistoricalMetricsSource's own docstring for why this needs no
-    registry or adapter-per-backend pattern the way DataSource does).
-
-    ``limit`` caps how many rows one ``get_outcomes()`` call returns (most
-    recent first), the same row-count-window trade-off
-    DuckDBHistoricalMetricsSource already makes for the identical reason:
-    a long-lived dataset's history shouldn't grow the query cost of every
-    future run.
+    """Past statuses for one rule from the store, newest first, capped at ``limit``
+    rows.
     """
 
     def __init__(

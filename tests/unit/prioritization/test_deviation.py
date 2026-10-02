@@ -46,11 +46,7 @@ def test_percentage_deviation_negative_deviation_uses_absolute_value() -> None:
 
 
 def test_percentage_deviation_undefined_baseline_saturates() -> None:
-    """baseline == 0, actual != 0: PercentageDeviationStrategy itself
-    records deviation=None (mathematically undefined) -- this should
-    saturate to the maximal ratio, not be dropped as unknown, so a
-    jump-from-nothing isn't under-escalated (edge case: zero expected
-    value)."""
+    """Zero baseline with a non-zero value gives the maximum ratio."""
     result = _result("percentage_deviation", {"deviation": None, "max_deviation": 0.10})
     assert compute_deviation_ratio(result) == 2.0
 
@@ -74,16 +70,13 @@ def test_static_ratio_within_bounds_is_zero() -> None:
 
 
 def test_static_ratio_zero_bound_saturates() -> None:
-    """Edge case: zero expected value -- a breached bound of exactly 0
-    makes a relative-distance ratio undefined; saturate rather than
-    divide by zero or silently drop the information."""
+    """A breached bound of 0 gives the maximum ratio instead of dividing by zero."""
     result = _result("static", {"actual": 5, "min": None, "max": 0})
     assert compute_deviation_ratio(result) == 2.0
 
 
 def test_static_ratio_negative_values() -> None:
-    """Edge case: negative metric values -- a signed metric with a
-    negative bound should still produce a sane relative distance."""
+    """Negative bounds still give a sensible ratio."""
     result = _result("static", {"actual": -150, "min": -100, "max": None})
     assert compute_deviation_ratio(result) == pytest.approx(0.5)
 
@@ -109,10 +102,7 @@ def test_bound_based_ratio_beyond_the_edge_exceeds_one() -> None:
 
 
 def test_bound_based_ratio_does_not_need_the_strategy_specific_center_key() -> None:
-    """statistical stores "mean", median_mad stores "median" -- this
-    function derives the center from lower/upper alone (their midpoint:
-    100 here), so it works even though neither key is present. actual=110
-    is halfway from that center (100) to the upper edge (120) -> 0.5."""
+    """Center is the midpoint of lower/upper (100); 110 is halfway to 120, so 0.5."""
     result = _result("median_mad", {"actual": 110, "lower": 80, "upper": 120})
     assert compute_deviation_ratio(result) == pytest.approx(0.5)
 

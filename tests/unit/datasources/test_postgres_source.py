@@ -1,14 +1,8 @@
-"""Unit tests for PostgresDataSource's pure helper functions.
+"""PostgresDataSource helpers that need no live database.
 
-Deliberately scoped to what's verifiable without a live Postgres
-connection: ``_canonical_type`` and ``_parse_config_reference`` are pure
-functions, and the two constructor error paths below both raise before
-``psycopg.connect`` is ever called. Adapter-method tests that need a real
-table (``row_count``, ``null_count``, ``columns``, ...) belong to the
-cross-adapter integration tests introduced once docker-compose brings up a
-real Postgres for CI -- see docs/architecture/0004-milestone-3-architecture.md
-Part 8/9. Running this file at all requires ``psycopg`` to be installed
-(added to pyproject.toml this milestone) -- run ``uv sync`` first.
+Covers ``_canonical_type``, ``_parse_config_reference`` and constructor errors.
+Queries against a real table are in
+tests/integration/test_postgres_duckdb_parity.py.
 """
 
 from __future__ import annotations

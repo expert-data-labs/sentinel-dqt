@@ -15,9 +15,7 @@ from sentinel.datasources import registry as registry_module
 
 @pytest.fixture(autouse=True)
 def _isolated_registry() -> Iterator[None]:
-    """Registering a dummy source for one test shouldn't leak into the
-    next, or into whatever real DataSource Milestone 2 registers at
-    import time. Save/clear/restore around every test in this module."""
+    """Save, clear and restore the registry around each test."""
     original = dict(registry_module._REGISTRY)
     registry_module._REGISTRY.clear()
     yield

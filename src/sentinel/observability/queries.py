@@ -1,35 +1,8 @@
-"""ObservabilityQueryService: the one entry point the presentation layer
-(CLI or dashboard) uses to read Sentinel's persisted runtime facts back
-out as presentation-shaped views.
+"""ObservabilityQueryService: reads stored runs into dashboard views.
 
-A plain concrete class, not a Protocol with a registry -- the same
-reasoning ValidationOrchestrator and IncidentPrioritizer already apply to
-themselves (see their own docstrings): a Protocol/registry earns its
-keep when multiple implementations are selected at runtime by a config
-string. Sentinel has exactly one persistence backend for its own store
-(always DuckDB, unlike the pluggable per-dataset DataSource), so there is
-only ever one implementation of this class, ever -- see
-docs/architecture/0007-milestone-6-design.md Part 5.
-
-Lives in its own top-level package, not sentinel.persistence, because its
-only consumer is the presentation layer -- an APPLICATION-layer concern
-sitting directly on infrastructure (this milestone's own layer diagram),
-the same relationship ValidationOrchestrator has to datasources/rules/
-thresholds. Unlike persistence/history.py or persistence/failure_history.py
-(concrete implementations of Protocols that live elsewhere specifically so
-domain code never imports duckdb), nothing in the domain consumes this
-class, so there is no Protocol to keep it isolated from.
-
-Every windowed method takes an explicit ``as_of: datetime`` rather than
-calling ``datetime.now(UTC)`` internally -- the presentation layer passes
-real "now" at the call site, tests pass a fixed timestamp. This is what
-makes every test in tests/unit/observability/ deterministic regardless of
-when it happens to run.
-
-Queries are written to avoid N+1 patterns: a bulk view across every
-dataset or every (dataset, rule) pair is a bounded number of queries
-(joins, GROUP BY, or one small window-function query plus one IN-list
-lookup), never one query per dataset/rule/run issued in a Python loop.
+Windowed methods take an explicit ``as_of`` time so tests are deterministic.
+Queries avoid N+1: each view runs a fixed number of queries regardless of how
+many datasets or rules exist.
 """
 
 from __future__ import annotations
@@ -59,9 +32,7 @@ from sentinel.observability.views import (
 
 
 class TimeWindow(StrEnum):
-    """The three practical time ranges this milestone supports
-    (docs/architecture/0007-milestone-6-design.md Part 5/11) --
-    deliberately not an arbitrary date-range control."""
+    """Supported time windows: 24h, 7d, 30d."""
 
     LAST_24H = "24h"
     LAST_7D = "7d"
@@ -80,8 +51,7 @@ def _cutoff(window: TimeWindow, as_of: datetime) -> datetime:
 
 
 def _dataset_clause(dataset_id: str | None) -> tuple[str, list[object]]:
-    """An optional "AND vr.dataset_id = ?" fragment plus its bind param,
-    shared by every method that accepts an optional dataset filter."""
+    """Optional ``AND vr.dataset_id = ?`` filter and its parameter."""
     if dataset_id is None:
         return "", []
     return " AND vr.dataset_id = ?", [dataset_id]
@@ -125,12 +95,7 @@ def _build_dataset_health_view(
 
 
 class ObservabilityQueryService:
-    """Reads Sentinel's persisted validation_runs/metrics/quality_events/
-    incidents tables back out as the six required dashboard views.
-    Stateless with respect to any single query -- ``self`` holds only the
-    connection, a dependency for the instance's lifetime, the same
-    pattern DuckDBHistoricalMetricsSource/DuckDBFailureHistorySource
-    already use."""
+    """Builds the dashboard views from the store. Holds only a connection."""
 
     def __init__(self, conn: duckdb.DuckDBPyConnection) -> None:
         self._conn = conn
@@ -168,10 +133,11 @@ class ObservabilityQueryService:
     # -- Dataset Health --
 
     def dataset_health(self, dataset_id: str) -> DatasetHealthView:
-        """A single dataset's current health -- for a dataset drill-down
-        page. Use ``all_datasets_health`` for the dashboard overview
-        (avoids repeating this dataset-at-a-time shape once per dataset,
-        which would reintroduce the N+1 this module otherwise avoids)."""
+        """Current health of one dataset.
+
+        For many datasets use ``all_datasets_health`` (avoids one query per
+        dataset).
+        """
         dataset_row = self._conn.execute(
             "SELECT id, name FROM datasets WHERE id = ?", [dataset_id]
         ).fetchone()
@@ -201,10 +167,7 @@ class ObservabilityQueryService:
         )
 
     def all_datasets_health(self) -> list[DatasetHealthView]:
-        """Every registered dataset's current health, for the dashboard
-        overview -- four queries total (datasets, latest-run-per-dataset,
-        failed counts, incident priorities), regardless of how many
-        datasets or runs exist."""
+        """Current health of every dataset, in four queries total."""
         datasets = self._conn.execute("SELECT id, name FROM datasets ORDER BY name").fetchall()
 
         latest_rows = self._conn.execute(
@@ -283,10 +246,7 @@ class ObservabilityQueryService:
         ]
 
     def rule_names_for_dataset(self, dataset_id: str) -> list[str]:
-        """Every rule name (metric_name) ever evaluated for this dataset,
-        sorted -- glue for a presentation-layer metric selector (e.g. the
-        dashboard's per-dataset Metric Trends dropdown), not one of the
-        six required views itself."""
+        """All rule names ever evaluated for a dataset, sorted (for UI selectors)."""
         rows = self._conn.execute(
             """
             SELECT DISTINCT m.metric_name
@@ -449,10 +409,7 @@ class ObservabilityQueryService:
             [Status.PASS.value, cutoff, *clause_params],
         ).fetchall()
 
-        # "Is this pair still broken right now" is a question about the
-        # single most recent evaluation of that rule ever -- deliberately
-        # NOT time-windowed (see health.classify_recurrence's own
-        # docstring), so this query has no ``cutoff`` filter.
+        # Latest evaluation ever (not windowed): is the rule still failing now?
         latest_status_rows = self._conn.execute(
             f"""
             SELECT dataset_id, metric_name, status FROM (

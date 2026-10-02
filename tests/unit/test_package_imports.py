@@ -1,10 +1,4 @@
-"""Smoke test for Task 1 (repo scaffolding): the package installs and imports
-cleanly, and every module boundary from the architecture doc exists.
-
-This is intentionally the only test until Task 2 introduces real domain
-objects to assert against — its job is to prove the scaffolding, not the
-(nonexistent yet) behavior.
-"""
+"""Smoke test: the package imports and its main modules exist."""
 
 import importlib
 

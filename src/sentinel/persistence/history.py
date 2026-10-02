@@ -1,20 +1,7 @@
-"""DuckDBHistoricalMetricsSource: the concrete, DuckDB-backed
-implementation of sentinel.thresholds.history.HistoricalMetricsSource.
+"""DuckDB-backed HistoricalMetricsSource.
 
-Lives here, not in sentinel.thresholds, precisely so thresholds/ never
-imports duckdb — see thresholds/history.py's own docstring and
-docs/architecture/0005-milestone-4-design.md Part 2 for why that
-separation is the point of the abstraction, not an accident of file
-layout.
-
-Queries the same ``metrics`` table persistence/writer.py already
-populates, joined to ``validation_runs`` on ``validation_run_id`` — no
-schema migration for Milestone 4. Unlike persistence/reader.py's
-``list_recent_runs`` (which filters by a Dataset's ``name`` and therefore
-needs a further join to ``datasets``), this filters directly on
-``validation_runs.dataset_id``, which is already the same string as
-Dataset.id — the id ``HistoricalMetricsSource.get_history`` is scoped by
-(see thresholds/history.py) — so no second join is needed here.
+Reads past metric values from the ``metrics`` table. Lives here so
+sentinel.thresholds never imports duckdb.
 """
 
 from __future__ import annotations
@@ -29,19 +16,7 @@ _DEFAULT_LIMIT = 90
 
 
 class DuckDBHistoricalMetricsSource:
-    """A HistoricalMetricsSource backed by Sentinel's own persistence
-    store (persistence/engine.py — always DuckDB, unlike the pluggable
-    DataSource a Dataset's own data lives behind; see the design doc for
-    why that distinction means this class needs no registry or
-    adapter-per-backend pattern the way DataSource does).
-
-    ``limit`` caps how many rows one ``get_history()`` call returns (most
-    recent first), so a long-lived dataset's validation history doesn't
-    grow the query cost of every future run. HistoricalMetricsSource's
-    own contract makes no promise about totality for exactly this reason
-    — each ThresholdStrategy's own ``min_history`` param decides how much
-    of what's returned it actually needs.
-    """
+    """Past Metrics from the store, newest first, capped at ``limit`` rows."""
 
     def __init__(
         self, conn: duckdb.DuckDBPyConnection, limit: int = _DEFAULT_LIMIT

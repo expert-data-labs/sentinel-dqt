@@ -75,12 +75,7 @@ def test_multiple_differences_all_get_counted_and_reported() -> None:
 
 
 def test_no_actual_columns_reports_every_expected_column_as_missing() -> None:
-    """An actual schema with no columns (an empty source.columns() mapping)
-    is a degenerate but valid input to this rule's diff logic -- every
-    expected column is, correctly, missing. See DataSource.columns() and
-    FakeDataSource.columns() for how this can arise from an empty dataset;
-    the corresponding real-adapter behavior (columns() staying populated
-    even with zero rows) is covered in test_duckdb_source.py."""
+    """No actual columns: every expected column is missing."""
     source = FakeDataSource(rows=[])
     config = _rule_config({"order_id": "string"})
     metric = SchemaValidationRule().compute(source, config)

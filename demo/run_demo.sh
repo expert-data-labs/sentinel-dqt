@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Phase 3 demo: simulates four daily loads of a CRITICAL `payments` dataset
-# through the real `sentinel validate` pipeline, into an ISOLATED store.
-# Touches nothing outside demo/: its own DB, datasets dir, and policies dir.
+# Demo: four daily loads of a CRITICAL `payments` dataset through
+# `sentinel validate`, using only demo/ (its own store, datasets, policies).
 #
 # Run from anywhere:   bash demo/run_demo.sh
 # Then the dashboard:  bash demo/run_demo.sh dashboard

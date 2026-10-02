@@ -6,29 +6,14 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
-    # Milestone 0 only needs the config-boundary layer; concrete adapters
-    # (duckdb) and the CLI (typer) are added when the tasks that need them
-    # land, not speculatively.
     "pydantic>=2.7",
     "pyyaml>=6.0",
-    # Milestone 2: DuckDBSource (the data source adapter) and, for now, the
-    # persistence store itself both use duckdb — see
-    # docs/architecture/0003-milestone-2-architecture.md Part 3.
+    # DuckDB data source and Sentinel's own store.
     "duckdb>=1.0",
-    # duckdb's Python client needs pytz at runtime to convert a fetched
-    # TIMESTAMPTZ column back into a timezone-aware Python datetime — an
-    # implicit dependency of duckdb itself, not something this project's
-    # own code imports. Discovered via `sentinel history`'s real query
-    # against started_at (TIMESTAMPTZ); writing TIMESTAMPTZ values
-    # (persistence/writer.py) doesn't hit this path, only reading them
-    # back out does.
+    # Needed by duckdb to read TIMESTAMPTZ values back as aware datetimes.
     "pytz>=2024.1",
-    # Milestone 2: the `sentinel` CLI itself.
     "typer>=0.12",
-    # Milestone 3: PostgresDataSource. v3 (psycopg, not psycopg2) with
-    # the [binary] extra so contributors don't need a local libpq/
-    # build toolchain just to run `uv sync` -- see
-    # docs/architecture/0004-milestone-3-architecture.md, Open Questions.
+    # Postgres data source; [binary] avoids needing a local libpq.
     "psycopg[binary]>=3.1",
 ]
 
@@ -42,10 +27,7 @@ dev = [
     "mypy>=1.11",
     "types-PyYAML>=6.0",
 ]
-# Milestone 6: the observability dashboard (dashboard/app.py). Its own
-# optional group, not `dependencies` or `dev` -- `sentinel validate`/
-# `sentinel history` users shouldn't have to install a web framework they
-# never run. Install with `uv sync --group dashboard` (or `--all-groups`).
+# Optional dashboard (dashboard/app.py): uv sync --group dashboard
 dashboard = [
     "streamlit>=1.35",
 ]

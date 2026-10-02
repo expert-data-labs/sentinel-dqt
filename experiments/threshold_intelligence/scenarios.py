@@ -1,29 +1,9 @@
-"""Deterministic synthetic datasets for Milestone 4's threshold-strategy
-comparison (docs/components/thresholds.md).
+"""Deterministic synthetic scenarios for comparing threshold strategies.
 
-Every scenario returns a chronological ``list[ScenarioPoint]`` for a
-single rule (``row_count``, standing in for any Metric a Rule produces
-once per run): a real Metric plus a ground-truth ``is_anomalous`` label
-that only this module knows about. That label deliberately has no home
-in sentinel.domain -- a real ThresholdStrategy never receives it and
-never could (there's no "ground truth" column in production); it exists
-solely so this experiment can score a strategy's PASS/FAIL verdicts
-against a known-correct answer.
-
-Randomness (the small day-to-day jitter in Scenarios A/B/C) uses
-``random.Random(_SEED)`` -- a fixed seed, so every run of this module
-produces byte-identical output, which is what makes the results in
-docs/experiments/threshold-strategy-evaluation.md and the pinning tests in
-tests/unit/experiments/test_runner.py reproducible rather than "usually
-about right." Scenario D uses no randomness at all -- every value is the
-exact figure from the milestone brief's own worked example.
-
-Timestamps start from the first Monday on or after 2026-01-01 (computed,
-not hardcoded, so this keeps working correctly regardless of what year
-someone points it at) specifically so Scenario B's weekday/weekend split
-lines up with real day-of-week boundaries -- SeasonalBaselineStrategy
-buckets by ``Metric.computed_at.weekday()``, so the synthetic dates have
-to be real, consecutive calendar days, not just "day 1, day 2, ...".
+Each scenario is a chronological list of daily row_count Metrics, each labeled
+with whether it is truly anomalous (ground truth used only for scoring). Noise
+uses a fixed seed, so results are reproducible. Dates start on a Monday so
+weekday patterns line up for the seasonal strategy.
 """
 
 from __future__ import annotations
@@ -44,9 +24,7 @@ FIRST_MONDAY = _YEAR_START + timedelta(days=(7 - _YEAR_START.weekday()) % 7)
 
 @dataclass(frozen=True)
 class ScenarioPoint:
-    """One day's Metric, plus whether it's *actually* anomalous --
-    ground truth this experiment invented, never something a
-    ThresholdStrategy is given or could compute itself."""
+    """One day's Metric plus its ground-truth anomaly label."""
 
     metric: Metric
     is_anomalous: bool
@@ -60,9 +38,7 @@ def _point(value: float, computed_at: datetime, is_anomalous: bool = False) -> S
 
 
 def scenario_a_stable(n: int = 30) -> list[ScenarioPoint]:
-    """Scenario A -- Stable Data: ``n`` consecutive days around 1000,
-    +/- small noise, nothing anomalous. Both a static and an adaptive
-    threshold are expected to pass every point (design doc Part 7)."""
+    """A - stable: ``n`` days around 1000 with small noise. No anomalies."""
     rng = random.Random(_SEED)
     return [
         _point(1000.0 + rng.uniform(-10, 10), FIRST_MONDAY + timedelta(days=i))
@@ -71,17 +47,10 @@ def scenario_a_stable(n: int = 30) -> list[ScenarioPoint]:
 
 
 def scenario_b_seasonal(weeks: int = 6) -> list[ScenarioPoint]:
-    """Scenario B -- Normal Seasonal Variation, plus one genuine anomaly.
+    """B - seasonal: weekdays ~1000, weekends ~500, then one real spike (1300).
 
-    ``weeks`` full weeks of a real weekday/weekend split (weekdays
-    ~1000, weekends ~500, both +/- small noise, none of it anomalous --
-    this is normal, recurring behavior, not something any strategy
-    should flag). One additional point is appended on the Monday right
-    after that block, at 1300 -- a genuine, one-off spike, the actual
-    anomaly this scenario also needs so a strategy that flags nothing at
-    all can't look "correct" by default (design doc Part 7's own
-    requirement: a seasonal baseline must both accept normal seasonal
-    variation *and* still catch a real anomaly).
+    Tests that a strategy ignores the weekly pattern but still catches the
+    spike.
     """
     rng = random.Random(_SEED)
     points: list[ScenarioPoint] = []
@@ -99,11 +68,7 @@ def scenario_b_seasonal(weeks: int = 6) -> list[ScenarioPoint]:
 
 
 def scenario_c_genuine_anomaly(n_normal: int = 30) -> list[ScenarioPoint]:
-    """Scenario C -- Genuine Anomaly: the same stable history as Scenario
-    A (same seed, same generator -- deliberately, so any difference in a
-    strategy's behavior between the two scenarios is attributable to the
-    one appended point, not to different underlying noise), followed by
-    one clear spike to 1800. Every strategy is expected to catch it."""
+    """C - genuine anomaly: Scenario A's data followed by one spike to 1800."""
     rng = random.Random(_SEED)
     points = [
         _point(1000.0 + rng.uniform(-10, 10), FIRST_MONDAY + timedelta(days=i))
@@ -114,16 +79,10 @@ def scenario_c_genuine_anomaly(n_normal: int = 30) -> list[ScenarioPoint]:
 
 
 def scenario_d_historical_outlier() -> list[ScenarioPoint]:
-    """Scenario D -- Historical Outlier: the milestone brief's own worked
-    example history (1000, 1020, 980, 1010, 1005) with one extreme value
-    (5000) appended twice in a row -- once as the outlier entering
-    history, once as a repeat of the same-sized anomaly evaluated *after*
-    the first has already contaminated the history a Mean/StdDev strategy
-    would compute. That repeat is the real point of this scenario (see
-    docs/experiments/threshold-strategy-evaluation.md): Mean/StdDev catches the
-    first occurrence (history is still clean) but misses the second (its
-    own bounds have since been dragged wide by the first), while
-    Median/MAD catches both.
+    """D - historical outlier: a short stable history, then 5000 twice.
+
+    Mean/stdev catches the first 5000 but misses the second (the first widened
+    its bounds). Median/MAD catches both.
     """
     normal_values = (1000.0, 1020.0, 980.0, 1010.0, 1005.0)
     points = [
@@ -148,11 +107,7 @@ ALL_SCENARIOS: dict[str, list[ScenarioPoint]] = {
 
 
 def _self_check() -> None:
-    """Sanity-checks the fixtures this module's own docstring promises --
-    run at import time so a change to the base date or the day arithmetic
-    that silently breaks the weekday alignment fails loudly immediately,
-    not three layers away inside a confusion-matrix number that just
-    looks a little off."""
+    """Check at import time that dates and weekday alignment are correct."""
     assert FIRST_MONDAY.weekday() == 0, "FIRST_MONDAY must actually be a Monday"
     b = ALL_SCENARIOS["B_seasonal"]
     weekday_count = sum(1 for p in b if p.metric.computed_at.weekday() < 5)

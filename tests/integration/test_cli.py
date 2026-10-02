@@ -1,23 +1,8 @@
-"""Integration tests for `sentinel validate` and `sentinel history` — the
-real CLI, invoked through Typer's CliRunner, against the real orders/
-configuration this milestone shipped at the repo root (datasets/orders.yaml,
-policies/orders.yaml, data/orders.csv — Part 8 of the Milestone 2 ADR) and a
-throwaway temp-file DuckDB history store, never the project's own
-sentinel.duckdb.
+"""End-to-end CLI tests for ``sentinel validate`` and ``sentinel history``.
 
-This is the one place bootstrap, resolution, DuckDBSource, the
-orchestrator, persistence, and both commands' printed output are all
-exercised together, wired exactly as `sentinel validate orders` runs for
-an actual user from the repo root. Unlike
-tests/integration/test_end_to_end.py (Milestone 1, against
-FakeDataSource and the loader functions called directly), this is
-Milestone 2's own top-to-bottom acceptance test.
-
-Every rule in policies/orders.yaml fails against data/orders.csv's 12-row
-sample (see test_end_to_end.py's own docstring for why that's a feature,
-not a bug, of this fixture), and none of them override the RuleConfig
-default of blocking=True — so every `validate` call in this module is
-expected to exit 2.
+Uses the repo's real orders config (datasets/, policies/, data/orders.csv) and a
+temporary DuckDB store. Every orders rule fails on the 12-row sample and is
+blocking, so ``validate`` always exits 2 here.
 """
 
 from __future__ import annotations
@@ -38,10 +23,7 @@ runner = CliRunner()
 def _real_repo_config_and_temp_history(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Resolve datasets/policies from the repo's own default directories
-    (no SENTINEL_DATASETS_DIR/SENTINEL_POLICIES_DIR override) by running
-    from the repo root, but redirect SENTINEL_DB_PATH to a fresh temp
-    file per test so these tests never touch the real sentinel.duckdb."""
+    """Run from the repo root with SENTINEL_DB_PATH pointed at a temp file."""
     monkeypatch.delenv("SENTINEL_DATASETS_DIR", raising=False)
     monkeypatch.delenv("SENTINEL_POLICIES_DIR", raising=False)
     monkeypatch.setenv("SENTINEL_DB_PATH", str(tmp_path / "history.duckdb"))

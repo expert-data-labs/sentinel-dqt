@@ -1,25 +1,8 @@
-"""Shared test doubles for Sentinel's unit tests.
+"""In-memory test doubles shared by unit tests.
 
-FakeDataSource is an in-memory stand-in for the DataSource Protocol, built
-from a list of row dicts, so rule/orchestration tests don't need a real
-DuckDB connection. DummyRule is a Rule that returns a fixed Metric
-regardless of input; DummyThresholdStrategy is a ThresholdStrategy that
-returns a fixed verdict regardless of input. Both dummies exist to test
-their registries and the orchestrator's control flow in isolation from any
-real rule or threshold logic. FakeHistorySource (Milestone 4) is the same
-idea applied to HistoricalMetricsSource: an in-memory stand-in so a
-strategy or orchestrator test can control exactly what history is "on
-record" without touching persistence.
-
-FakeFailureHistorySource (Milestone 5) is the same idea again, applied to
-FailureHistorySource: an in-memory stand-in so a frequency/confidence/
-prioritizer test can control exactly what outcome history is "on record"
-without touching persistence.
-
-Not a conftest.py: these are plain importable classes, not pytest
-fixtures — nothing here needs autouse injection, and being explicit about
-which test imports which double is more readable than implicit fixture
-magic for a handful of simple stand-ins.
+- FakeDataSource: DataSource over a list of row dicts
+- DummyRule / DummyThresholdStrategy: return fixed results
+- FakeHistorySource / FakeFailureHistorySource: canned history
 """
 
 from __future__ import annotations
@@ -50,16 +33,9 @@ def _canonical_type_of(value: Any) -> str:
 
 @dataclass
 class FakeDataSource:
-    """An in-memory DataSource over a list of row dicts.
+    """In-memory DataSource over a list of row dicts.
 
-    Mirrors the edge-case contracts documented on DataSource itself: an
-    empty ``rows`` list behaves like an empty dataset, and a column whose
-    values are all ``None`` behaves like an all-null column.
-
-    ``source_type`` is a ClassVar, not something instances vary — this
-    double isn't resolved through the registry anywhere, but it still needs
-    the attribute to structurally satisfy the DataSource Protocol wherever
-    a test passes one in as a ``source: DataSource`` argument.
+    Follows DataSource's empty-dataset and all-null rules.
     """
 
     source_type: ClassVar[str] = "fake"
@@ -80,14 +56,9 @@ class FakeDataSource:
         return max(values) if values else None
 
     def columns(self) -> dict[str, str]:
-        """Infers each column's canonical type from the first non-null
-        value seen for it, across all rows (a plain in-memory row list has
-        no separate declared schema to read, unlike a real CSV/table).
-        Column order follows first-appearance order across the rows,
-        mirroring how a real header row would order them. A column every
-        row leaves null gives ``"unknown"`` — there's no value to infer a
-        type from, same reasoning ``max_value`` already applies to an
-        all-null column returning ``None`` rather than guessing.
+        """Infer each column's type from its first non-null value.
+
+        Order follows first appearance. All-null columns are "unknown".
         """
         types: dict[str, str] = {}
         for row in self.rows:
@@ -100,11 +71,7 @@ class FakeDataSource:
 
 
 class DummyRule:
-    """A Rule that ignores its inputs and returns a fixed value.
-
-    Useful for testing the registry and the orchestrator's wiring without
-    any real measurement logic in the way.
-    """
+    """Rule that ignores its inputs and returns a fixed value."""
 
     rule_type: ClassVar[str] = "dummy"
 
@@ -116,9 +83,7 @@ class DummyRule:
 
 
 class DummyThresholdStrategy:
-    """A ThresholdStrategy that ignores its inputs and returns a fixed
-    verdict. Useful for testing the registry and the orchestrator's wiring
-    without any real evaluation logic."""
+    """ThresholdStrategy that ignores its inputs and returns a fixed verdict."""
 
     strategy_type: ClassVar[str] = "dummy"
 
@@ -140,15 +105,8 @@ class DummyThresholdStrategy:
 
 @dataclass
 class FakeHistorySource:
-    """An in-memory HistoricalMetricsSource, keyed by ``(dataset_id,
-    metric_name)`` (see sentinel.thresholds.history for the real
-    Protocol).
-
-    Lets a test hand an orchestrator or a strategy exactly the history it
-    wants to exercise, without standing up any persistence — the same
-    role FakeDataSource plays for DataSource. An unrecognized key answers
-    with an empty tuple, matching HistoricalMetricsSource's own contract
-    that "no history yet" is an ordinary answer, not an error.
+    """In-memory HistoricalMetricsSource keyed by (dataset_id, metric_name).
+    Unknown keys return ().
     """
 
     history: Mapping[tuple[str, str], Sequence[Metric]] = field(default_factory=dict)
@@ -159,14 +117,8 @@ class FakeHistorySource:
 
 @dataclass
 class FakeFailureHistorySource:
-    """An in-memory FailureHistorySource, keyed by ``(dataset_id,
-    metric_name)`` (see sentinel.prioritization.history for the real
-    Protocol).
-
-    Same role FakeHistorySource plays for HistoricalMetricsSource, applied
-    to outcome (Status) history instead of Metric-value history. An
-    unrecognized key answers with an empty tuple, matching
-    FailureHistorySource's own "no history yet is ordinary" contract.
+    """In-memory FailureHistorySource keyed by (dataset_id, metric_name). Unknown
+    keys return ().
     """
 
     outcomes: Mapping[tuple[str, str], Sequence[Status]] = field(default_factory=dict)

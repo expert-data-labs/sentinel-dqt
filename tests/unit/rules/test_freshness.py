@@ -30,10 +30,7 @@ def test_freshness_minutes_measures_elapsed_time_since_the_latest_timestamp() ->
 
 
 def test_a_stale_dataset_still_just_reports_its_age_no_pass_fail_here() -> None:
-    """FreshnessRule never decides stale vs. fresh -- see the rule's own
-    docstring and sentinel.rules.base. A large freshness_minutes value is
-    exactly as valid an output as a small one; StaticThresholdStrategy is
-    what turns it into a verdict, unchanged from every other rule."""
+    """The rule only reports age; a threshold decides pass/fail."""
     latest = datetime.now(UTC) - timedelta(days=2)
     source = FakeDataSource(rows=[{"updated_at": latest}])
     metric = FreshnessRule().compute(source, _rule_config())

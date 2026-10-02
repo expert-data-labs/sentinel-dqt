@@ -1,11 +1,4 @@
-"""Unlike the other DataSource tests in this package (test_base.py, which
-exercises FakeDataSource), these tests exercise DuckDBSource directly
-against real CSV files on disk — there's no meaningful way to test "does
-this SQL actually do what the DataSource contract requires" without a
-real DuckDB engine reading a real file. Instantiated directly, not
-through get_data_source(); the registry mechanics are covered separately
-in test_registry.py and test_registration.py.
-"""
+"""DuckDBSource against real CSV files on disk."""
 
 from __future__ import annotations
 
@@ -76,7 +69,7 @@ def test_registers_itself_under_duckdb() -> None:
     assert DuckDBSource.source_type == "duckdb"
 
 
-# --- Milestone 3: columns() -----------------------------------------------
+# --- columns() ------------------------------------------------------------
 
 
 def test_columns_maps_duckdb_types_to_the_canonical_vocabulary(tmp_path: Path) -> None:
@@ -99,8 +92,7 @@ def test_columns_is_structural_and_works_on_an_empty_dataset(tmp_path: Path) -> 
     path = _write_csv(tmp_path, "id,name\n")
     source = DuckDBSource(path)
 
-    # 0 rows, but the header alone is enough for DuckDB to DESCRIBE it —
-    # schema introspection needs no empty-dataset special case.
+    # 0 rows, but the header is enough for DESCRIBE.
     assert set(source.columns()) == {"id", "name"}
 
 
@@ -123,17 +115,11 @@ def test_canonical_type_mapping(duckdb_type: str, expected: str) -> None:
     assert _canonical_type(duckdb_type) == expected
 
 
-# --- Milestone 3: max_value's UTC contract for timestamp columns ----------
+# --- max_value returns UTC for timestamps -----------------------------------
 
 
 def test_max_value_on_a_timestamp_column_is_timezone_aware_utc(tmp_path: Path) -> None:
-    """Pins down the DataSource.max_value contract (Part 3b of the
-    architecture doc): whatever tzinfo DuckDB itself infers for a CSV
-    timestamp column, the value this adapter hands back must be
-    UTC-aware, never naive — a FreshnessRule computing
-    ``datetime.now(UTC) - source.max_value(column)`` cannot safely handle
-    "maybe naive, maybe not" on its own.
-    """
+    """Timestamps from max_value are always UTC-aware, never naive."""
     path = _write_csv(
         tmp_path,
         "id,updated_at\n1,2026-08-23T10:00:00\n2,2026-08-23T09:45:00\n",

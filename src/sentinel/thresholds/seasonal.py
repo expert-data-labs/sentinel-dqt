@@ -1,16 +1,8 @@
-"""SeasonalBaselineStrategy: judge a Metric against a mean +/- n_sigma *
-stddev band computed only from the slice of its history that shares the
-current Metric's ``day_of_week`` — not the whole history at once.
+"""SeasonalBaselineStrategy: mean/stdev band using only history from the same
+weekday.
 
-This is the strategy that makes Scenario B (docs/architecture/
-0005-milestone-4-design.md Part 7) demonstrable: a dataset with a real
-weekday/weekend pattern (e.g. ~1000 on weekdays, ~500 on weekends) looks
-like constant false positives to a global static bound or a single global
-mean, because "normal" genuinely differs by day. Bucketing history by
-weekday before computing a baseline is the smallest change that fixes
-that, without any forecasting, seasonality detection, or time-series
-modeling — the bucket a value belongs to is read directly off its own
-timestamp, nothing is predicted.
+Stops false alarms on data with a weekly pattern (e.g. lower volume on
+weekends).
 """
 
 from __future__ import annotations
@@ -58,31 +50,14 @@ def _describe_expectation(
 
 @register_threshold_strategy
 class SeasonalBaselineStrategy:
-    """Judges a Metric against a Mean/StdDev band computed only from
-    historical Metrics that share its ``day_of_week``.
+    """Mean/stdev band built from past Metrics on the same day of the week.
 
-    ``config.params``:
-        dimension (default ``"day_of_week"``, the only value supported):
-            which seasonality dimension to bucket by. Any other value
-            raises ThresholdConfigError immediately — silently falling
-            back to a global baseline for an unrecognized dimension would
-            be a worse failure mode than refusing to guess.
-        n_sigma (default 3.0): same meaning as on StatisticalThresholdStrategy,
-            applied within the matching bucket rather than across all
-            history.
-        min_history (default 2, clamped up to 2): the fewest historical
-            Metrics *in the current Metric's own bucket* required — e.g.
-            for a Monday metric, this counts only prior Mondays, not
-            total history. A dataset with plenty of overall history but
-            only its first Tuesday on record still raises
-            InsufficientHistoryError for a Tuesday evaluation.
+    Params:
 
-    Deliberately not more general than this: no automatic seasonality
-    detection, no forecasting, no other dimension (hour-of-day, day-of-
-    month) implemented yet. The milestone's goal is to demonstrate that
-    bucketing by a known, explicit seasonality dimension can eliminate a
-    class of false positive a global baseline produces — not to build a
-    general seasonality engine.
+    - ``dimension`` (default and only option: ``day_of_week``)
+    - ``n_sigma`` (default 3.0)
+    - ``min_history`` (default 2, minimum 2): counted within the matching
+      weekday only
     """
 
     strategy_type: ClassVar[str] = "seasonal"

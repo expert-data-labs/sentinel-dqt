@@ -34,16 +34,11 @@ def test_incident_priority_has_the_four_expected_values() -> None:
 
 
 def test_incident_priority_is_a_distinct_type_from_severity_and_criticality() -> None:
-    """See IncidentPriority's own docstring: reusing Severity's (or
-    Criticality's) enum type here would make it impossible to tell "the
-    policy configured HIGH severity" apart from "Sentinel computed HIGH
-    priority for this occurrence". Note this is a *type*-level distinction
-    only: since both are StrEnum, IncidentPriority.HIGH == Severity.HIGH
-    is True at runtime (str equality) -- exactly like Criticality.HIGH ==
-    Severity.HIGH already is today. What actually matters -- and what a
-    type checker enforces -- is that they are different classes, so a
-    QualityEvent.severity and an Incident.priority can never be silently
-    interchanged in code that type-checks against the correct one."""
+    """IncidentPriority is its own class.
+
+    Values compare equal as strings at runtime (StrEnum); the separation is for
+    the type checker.
+    """
     assert not issubclass(IncidentPriority, Severity)
     assert not issubclass(Severity, IncidentPriority)
     assert IncidentPriority.HIGH.__class__ is IncidentPriority

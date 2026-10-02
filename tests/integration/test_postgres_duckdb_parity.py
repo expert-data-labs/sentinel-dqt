@@ -1,31 +1,9 @@
-"""Milestone 3's Adapter Compatibility test: the exact same Rule
-executions, run once against a real DuckDBSource (a temp CSV file) and
-once against a real PostgresDataSource (a temp table), given the same
-logical dataset -- proving Rules are backend-independent (FR-10), not
-just structurally (same Protocol) but in practice against two real
+"""Runs the same rules against DuckDB and Postgres and expects the same results.
+
+Skipped if Postgres isn't reachable (SENTINEL_TEST_POSTGRES_DSN; start it with
+``docker compose up -d``). Schema checks build each adapter's expected_schema
+from its own ``columns()`` output, since type inference can differ between
 engines.
-
-Skips entirely if Postgres isn't reachable (SENTINEL_TEST_POSTGRES_DSN,
-defaulting to the docker-compose/CI credentials in docker-compose.yml and
-.github/workflows/ci.yml) -- a contributor running `pytest` without first
-starting Postgres locally still gets a passing suite, with this one file
-skipped rather than failing; CI always has Postgres up via its `services:`
-block, so it always runs there. DuckDB has no equivalent skip: it's an
-embedded engine reading a plain temp file, always available wherever
-duckdb itself is installed (already a hard dependency since Milestone 2).
-
-Row count, null rate, uniqueness, and freshness are asserted to produce
-matching values from both adapters, given matching data -- these rules
-measure the data, and the data is the same on both sides. Schema
-validation is deliberately tested differently: rather than asserting a
-specific canonical type for, say, order_total (DuckDB's CSV type sniffing
-isn't empirically verified in the environment these tests were authored
-in -- see docs/architecture/0004-milestone-3-architecture.md,
-"Verification gap"), each adapter's own real ``columns()`` output is used
-to build its own expected_schema. That proves SchemaValidationRule's
-match/mismatch logic is correct against a real adapter's real schema,
-without this test file needing to predict which specific type either
-engine infers.
 """
 
 from __future__ import annotations

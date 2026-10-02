@@ -1,28 +1,10 @@
-"""Milestone 1's acceptance test: the milestone's own diagram
+"""End-to-end validation with real components and no dummies:
 
-    Policy -> Rule Resolution -> Rule Execution -> Metric ->
-    Threshold Evaluation -> Quality Event -> Validation Run Result
+    Policy -> Rule -> Metric -> Threshold -> QualityEvent -> ValidationRun
 
-made executable, with no dummies anywhere. Unlike tests/unit/, which
-exercises one component at a time (often against DummyRule/
-DummyThresholdStrategy), this loads the real orders_m1.yaml policy through
-the real load_policy(), registers the real Milestone 1 rules and the real
-static threshold strategy via register_all(), and runs them through the
-real ValidationOrchestrator against a FakeDataSource seeded from the
-existing orders.csv fixture.
-
-orders_m1.yaml (not orders.yaml) is used deliberately: orders.yaml also
-declares a `freshness` rule, which has no Rule implementation until
-Milestone 3 — running it through a real orchestrator today would raise
-RuleNotRegisteredError. See orders_m1.yaml's own header comment.
-
-orders.csv's 12 rows were built (Milestone 0) to exercise exactly the
-edge cases this test needs: one null customer_id and one duplicate
-order_id. Against the PRD's own thresholds (min: 1000 rows, max: 1% nulls,
-max: 0 duplicates) every rule here is expected to fail — this is a small
-sample fixture, not a production-sized table. That's a feature for this
-test: it proves the pipeline computes *and correctly judges* real
-measurements, not just that it runs without crashing.
+Uses the orders_m1.yaml policy against a FakeDataSource loaded from orders.csv.
+The 12-row fixture has one null customer_id and one duplicate order_id, so every
+rule is expected to fail.
 """
 
 from __future__ import annotations
@@ -40,9 +22,7 @@ FIXTURES_ROOT = Path(__file__).parents[1] / "fixtures"
 
 
 def _orders_data_source() -> FakeDataSource:
-    """Load orders.csv into a FakeDataSource, treating empty CSV fields as
-    null (csv.DictReader gives back "" for an empty field, not None, and
-    DataSource's null semantics are defined in terms of None)."""
+    """Load orders.csv into a FakeDataSource, turning empty fields into None."""
     path = FIXTURES_ROOT / "data" / "orders.csv"
     with path.open(newline="") as f:
         rows = [
@@ -87,8 +67,7 @@ def test_orders_m1_policy_runs_end_to_end_against_the_sample_fixture() -> None:
     assert uniqueness_event.status is Status.FAIL  # 1 duplicate, threshold requires 0
     assert uniqueness_event.expected == "unique_order_id <= 0"
 
-    # Worst-status-wins aggregation (Milestone 0's orchestrator): every
-    # event failed, so the run as a whole is a FAIL.
+    # Worst status wins: every event failed, so the run fails.
     assert run.status is Status.FAIL
     assert run.dataset.name == "orders"
     assert run.policy_version == policy.version

@@ -32,9 +32,7 @@ from tests.unit.doubles import (
 
 @pytest.fixture(autouse=True)
 def _isolated_registries() -> Iterator[None]:
-    """Registering dummies for these tests shouldn't leak into other test
-    modules, or into whatever real rules/strategies Milestone 1 eventually
-    registers at import time."""
+    """Keep test registrations from leaking into other tests."""
     original_rules = dict(rule_registry_module._REGISTRY)
     original_strategies = dict(threshold_registry_module._REGISTRY)
     rule_registry_module._REGISTRY.clear()
@@ -47,16 +45,10 @@ def _isolated_registries() -> Iterator[None]:
 
 
 class _HistoryCapturingStrategy:
-    """A ThresholdStrategy whose only job is to record the ``history`` it
-    was called with, so a test can assert on exactly what the orchestrator
-    fetched and passed through — the orchestrator's one Milestone 4
-    responsibility (see orchestrator.py's own docstring).
+    """Records the ``history`` it receives.
 
-    ``received`` is a ClassVar, not instance state: the orchestrator asks
-    the registry for a fresh instance per rule (registry.get_threshold_strategy
-    calls ``strategy_cls()`` each time), so a test that wants to see calls
-    across every rule in a run needs somewhere shared to record them. Tests
-    using this double reset it themselves before running the orchestrator.
+    ``received`` is a ClassVar because the registry creates a new instance per
+    rule. Tests reset it before running.
     """
 
     strategy_type: ClassVar[str] = "history_capturing"
@@ -134,9 +126,7 @@ def test_run_collects_one_event_per_rule_in_the_policy() -> None:
 
 
 def test_default_history_source_supplies_empty_history() -> None:
-    """No history_source passed in -> NullHistorySource -> every strategy
-    call sees (), same as every Milestone 0-3 construction site does today
-    (ValidationOrchestrator() with no arguments)."""
+    """Without a history_source, strategies receive empty history."""
     register_rule(DummyRule)
     register_threshold_strategy(_HistoryCapturingStrategy)
     _HistoryCapturingStrategy.received = []
@@ -191,14 +181,10 @@ def test_worst_status_picks_the_most_severe(statuses: list[Status], expected: St
     assert _worst_status(statuses) is expected
 
 
-# -- Milestone 5: incident prioritization integration -------------------------
+# -- Incident prioritization ---------------------------------------------
 #
-# DummyThresholdStrategy always answers Status.PASS regardless of any
-# constructor argument -- the registry builds a fresh instance with no
-# args each time (see registry.get_threshold_strategy) -- so the tests
-# below that need a FAIL/WARN verdict register their own small strategy
-# double instead, the same pattern _HistoryCapturingStrategy above
-# already establishes for Milestone 4.
+# DummyThresholdStrategy always passes, so these tests register their own
+# failing strategies.
 
 
 def test_default_prioritizer_produces_an_incident_for_a_failing_event() -> None:
@@ -242,9 +228,7 @@ def test_passing_events_produce_no_incidents() -> None:
 
 
 def test_incidents_are_only_produced_for_non_pass_events_among_several_rules() -> None:
-    """Edge case: multiple QualityEvents in one ValidationRun -- some pass,
-    some don't; only the non-PASS ones get an Incident, and run.incidents
-    stays shorter than run.quality_events."""
+    """Only non-PASS events get an Incident."""
 
     class _MixedStrategy:
         strategy_type: ClassVar[str] = "mixed"
@@ -273,9 +257,7 @@ def test_incidents_are_only_produced_for_non_pass_events_among_several_rules() -
 
 
 def test_default_failure_history_source_treats_every_failure_as_first_occurrence() -> None:
-    """No failure_history_source passed in -> NullFailureHistorySource ->
-    every non-PASS event is scored as a first occurrence, same discipline
-    Milestone 4's NullHistorySource default already established."""
+    """Without a failure_history_source, every failure is a first occurrence."""
 
     class _FailingStrategy:
         strategy_type: ClassVar[str] = "always_fail_2"

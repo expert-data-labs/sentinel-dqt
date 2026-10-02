@@ -55,8 +55,7 @@ def test_rule_config_requires_threshold() -> None:
 
 
 def test_rule_config_expected_schema_is_settable() -> None:
-    """Milestone 3: the schema validation rule's own YAML shape —
-    ``expected_schema: {column: type, ...}``."""
+    """``expected_schema: {column: type}`` is accepted."""
     rule = RuleConfig.model_validate(
         {
             "name": "orders_schema",
@@ -79,9 +78,7 @@ def test_rule_config_expected_schema_is_settable() -> None:
 
 
 def test_rule_config_expected_schema_rejects_non_string_values() -> None:
-    """A pydantic field, so a malformed expected_schema fails at
-    policy-load time — not silently accepted and only discovered when a
-    Rule tries to use it."""
+    """A malformed expected_schema fails when the policy loads."""
     with pytest.raises(ValidationError):
         RuleConfig.model_validate(
             {

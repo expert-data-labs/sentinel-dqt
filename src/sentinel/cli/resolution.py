@@ -1,27 +1,8 @@
-"""Resolves a dataset name (as given to ``sentinel validate <dataset>`` /
-``sentinel history <dataset>``) to its Dataset and Policy configuration
-on disk.
+"""Finds a dataset's YAML files by name.
 
-Filesystem convention, not a database-backed registry — the PRD's own
-roadmap places a real dataset registry in a later phase (see
-docs/architecture/0003-milestone-2-architecture.md Part 1). Two YAML
-files per dataset, both named after it:
-``<datasets_dir>/<name>.yaml`` (a Dataset, FR-01) and
-``<policies_dir>/<name>.yaml`` (a Policy, FR-02). Directories default to
-``datasets/`` and ``policies/`` relative to the current working
-directory, overridable via ``SENTINEL_DATASETS_DIR`` /
-``SENTINEL_POLICIES_DIR``.
-
-A Dataset's ``config_reference`` (e.g. a CSV path for DuckDBSource) is
-resolved relative to the current working directory too, not relative to
-the dataset YAML file's own location — the simplest rule that works for
-this milestone's single-directory local layout; revisit if datasets ever
-live outside the working tree they're validated from.
-
-Errors from the underlying loaders (DatasetLoadError, PolicyLoadError)
-propagate as-is — this module doesn't wrap them further. Formatting a
-resolution failure for a person to read is the CLI command's job
-(sentinel.cli.main), not this module's.
+Convention: ``datasets/<name>.yaml`` and ``policies/<name>.yaml``, relative to
+the working directory. Override with ``SENTINEL_DATASETS_DIR`` and
+``SENTINEL_POLICIES_DIR``. Loader errors propagate unchanged.
 """
 
 from __future__ import annotations

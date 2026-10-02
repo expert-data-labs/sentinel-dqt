@@ -1,30 +1,7 @@
-"""StaticThresholdStrategy: judge a Metric against a fixed min/max/range.
+"""StaticThresholdStrategy: compare a Metric against a fixed min/max.
 
-Deliberately generic and deliberately thin — it reads exactly two keys
-from ``config.params`` (``min``, ``max``) and knows nothing about which
-Rule produced the Metric it's judging. Any rule-specific bound (a
-"max_duplicates", a "max_delay_minutes") is the wrong param name for this
-strategy on purpose: the value of a generic static engine is that every
-rule type can share it unmodified, and the moment it starts special-casing
-one rule's vocabulary is the moment that stops being true. A rule whose
-threshold doesn't fit min/max/range needs a different strategy_type, not a
-new param alias here.
-
-Only ever produces Status.PASS or Status.FAIL. Status.WARN stays a valid
-value on ThresholdResult, but nothing about a fixed bound has a "soft"
-middle band to justify it — that's reserved for an adaptive strategy
-(Milestone 4) with an actual two-tier concept of acceptable.
-
-``details`` (Milestone 5): unlike Milestone 4's adaptive strategies, this
-strategy had no structured ``details`` until now — there was nothing an
-in-memory bound needed to explain beyond the ``expected`` string. Incident
-prioritization (sentinel.prioritization.deviation) needs a machine-readable
-``actual``/``min``/``max`` to compute a normalized deviation magnitude
-uniformly across every strategy_type, the same way it already reads the
-adaptive strategies' own ``details``. This is purely additive: the field
-was already optional and defaulted to ``None`` on ThresholdResult since
-Milestone 4, so no existing caller or test that ignores ``details`` is
-affected.
+Reads only ``min`` and ``max`` from params and works for every rule. Returns
+PASS or FAIL (never WARN). ``details`` holds actual/min/max for prioritization.
 """
 
 from __future__ import annotations
@@ -48,12 +25,8 @@ def _describe_expectation(metric_name: str, min_bound: Any, max_bound: Any) -> s
 
 @register_threshold_strategy
 class StaticThresholdStrategy:
-    """Judges a Metric against a fixed ``min``, ``max``, or both (a range).
-
-    Both bounds are inclusive: ``min: 10, max: 100`` passes for any value
-    in ``[10, 100]``. ``history`` is accepted (per the ThresholdStrategy
-    Protocol) and ignored — a static strategy has nothing to compare
-    against but the configured bound itself.
+    """Pass if the value is within ``min`` and/or ``max`` (inclusive). Ignores
+    history.
     """
 
     strategy_type: ClassVar[str] = "static"

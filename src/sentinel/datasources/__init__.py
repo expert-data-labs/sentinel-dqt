@@ -1,8 +1,7 @@
-"""Data source adapters: capability-based access to whatever backs a dataset.
+"""Data source adapters.
 
-Rules call named capabilities (row_count, null_count, ...) rather than
-executing engine-specific queries, so rule semantics don't change when the
-adapter does (FR-10).
+Rules call capabilities (row_count, null_count, ...) instead of writing engine-
+specific SQL, so a rule behaves the same on every backend.
 """
 
 from sentinel.datasources.base import DataSource

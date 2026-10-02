@@ -1,19 +1,8 @@
-"""IncidentPrioritizer integration tests -- the seven deterministic
-scenarios from the milestone brief, plus explainability and the one
-defensive contract (PASS events are never prioritized).
+"""IncidentPrioritizer end to end: seven scenarios, explainability, and the PASS
+guard.
 
-Per-component behavior (severity/criticality/deviation/frequency/
-confidence scoring in isolation, boundary classification, monotonicity
-invariants) is covered in test_scoring.py, test_config.py,
-test_deviation.py, test_frequency.py, and test_confidence.py -- this
-file is specifically about the whole IncidentPrioritizer pipeline
-producing sensible, documented outcomes end to end, exactly as it will
-actually be called from ValidationOrchestrator.
-
-Every scenario's inputs and expected priority range were chosen to match
-the milestone brief's own descriptions, then verified against a real run
-of IncidentPrioritizer (not hand-computed) -- see
-docs/architecture/0006-milestone-5-design.md Part 13.
+Individual components are tested in the other prioritization test files.
+Expected ranges were verified by running the prioritizer.
 """
 
 from __future__ import annotations
@@ -51,9 +40,9 @@ def _dataset(criticality: Criticality) -> Dataset:
 def _bound_details(
     actual: float, n_history: int, lower: float = 900, upper: float = 1100
 ) -> dict[str, Any]:
-    """A statistical/median_mad/seasonal-shaped details dict -- see
-    sentinel.prioritization.deviation for why lower/upper alone are
-    enough regardless of which of those three strategy_types is used."""
+    """Details dict with lower/upper, as statistical/median_mad/seasonal store
+    them.
+    """
     return {"actual": actual, "lower": lower, "upper": upper, "n_history": n_history}
 
 
@@ -122,9 +111,7 @@ def test_scenario_4_repeated_anomaly(prioritizer: IncidentPrioritizer) -> None:
 def test_scenario_5_false_positive_prone_anomaly_is_not_over_escalated(
     prioritizer: IncidentPrioritizer,
 ) -> None:
-    """A small deviation on a thin-history adaptive threshold (the kind
-    that has historically produced uncertainty) must not be escalated to
-    HIGH/CRITICAL just because *something* failed."""
+    """A small deviation on thin history must not reach HIGH or CRITICAL."""
     event = _event(Severity.WARNING, "statistical", _bound_details(actual=1005, n_history=2))
     incident = prioritizer.prioritize(_dataset(Criticality.MEDIUM), event, [Status.PASS] * 3)
     assert incident.priority in {IncidentPriority.INFO, IncidentPriority.WARNING}
@@ -149,9 +136,7 @@ def test_scenario_6_extreme_failure_is_critical(prioritizer: IncidentPrioritizer
 def test_scenario_7_first_occurrence_does_not_inflate_frequency_score(
     prioritizer: IncidentPrioritizer,
 ) -> None:
-    """A first-time failure (50 clean prior runs) must score low on the
-    frequency component specifically, regardless of how severity/
-    criticality/deviation/confidence push the overall priority."""
+    """A first failure after 50 clean runs scores low on frequency."""
     event = _event(Severity.HIGH, "statistical", _bound_details(actual=1150, n_history=30))
     incident = prioritizer.prioritize(_dataset(Criticality.HIGH), event, [Status.PASS] * 50)
     assert incident.components.frequency_score == 10.0
@@ -167,7 +152,7 @@ def test_prioritize_raises_for_a_pass_event(prioritizer: IncidentPrioritizer) ->
         prioritizer.prioritize(_dataset(Criticality.MEDIUM), event, [])
 
 
-# -- explainability (milestone brief Part 9) ---------------------------------
+# -- explainability ---------------------------------------------------------
 
 
 def test_incident_reasons_mention_criticality_severity_deviation_frequency_confidence(
@@ -182,6 +167,5 @@ def test_incident_reasons_mention_criticality_severity_deviation_frequency_confi
     assert "deviation" in joined.lower()
     assert "frequency" in joined.lower()
     assert "confidence" in joined.lower()
-    # Every reason line is explained from the same components already on
-    # the Incident -- nothing here should require recomputing anything.
+    # Reasons come from the Incident's own components.
     assert len(incident.reasons) == 5

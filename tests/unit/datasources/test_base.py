@@ -1,9 +1,9 @@
-"""These tests exercise FakeDataSource, but their real job is to pin down
-DataSource's documented edge-case contracts (empty dataset, all-null
-column) in executable form, and to prove — via the DataSource-typed
-variable each test assigns through — that FakeDataSource satisfies the
-Protocol structurally (checked by mypy, not at runtime; DataSource has no
-@runtime_checkable marker)."""
+"""DataSource edge cases (empty dataset, all-null column), checked with
+FakeDataSource.
+
+Assigning to DataSource-typed variables lets mypy check FakeDataSource satisfies
+the Protocol.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Loads and validates dataset metadata from configuration files (FR-01)."""
+"""Loads and validates dataset YAML files."""
 
 from sentinel.dataset_loader.loader import DatasetLoadError, load_dataset
 

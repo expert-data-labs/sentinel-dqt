@@ -1,12 +1,4 @@
-"""FreshnessRule: how many minutes old a dataset is, measured from a
-timestamp column.
-
-Reuses StaticThresholdStrategy exactly as it already exists (e.g. a policy
-sets ``max: 60`` on this rule's threshold) -- this rule does not decide
-"stale" vs. "fresh" itself. See sentinel.rules.base for why a Rule never
-judges its own Metric; freshness is not a special case of that principle,
-just another measurement.
-"""
+"""FreshnessRule: minutes since the latest timestamp in a column."""
 
 from __future__ import annotations
 
@@ -21,33 +13,14 @@ from sentinel.rules.registry import register_rule
 
 @register_rule
 class FreshnessRule:
-    """Measures how many minutes have elapsed since the most recent value
-    in ``config.column`` (expected to hold timestamps).
+    """Minutes elapsed since ``max_value(config.column)``.
 
-    Relies entirely on ``DataSource.max_value()``'s Milestone 3 contract:
-    the returned datetime is always timezone-aware UTC, so this rule can do
-    plain ``datetime.now(UTC) - max_value`` arithmetic with no
-    backend-specific timezone handling of its own -- see the contract note
-    on ``DataSource.max_value``.
+    ``max_value`` returns timezone-aware UTC, so plain subtraction is safe.
 
-    Edge cases (see docs/architecture/0004-milestone-3-architecture.md
-    Part 4 for the full discussion this rule implements):
-
-    - Empty dataset or an all-null column: ``max_value`` returns ``None``,
-      and this rule reports ``float("inf")`` minutes -- "infinitely stale"
-      rather than raising or inventing an arbitrary sentinel value, so a
-      ``StaticThresholdStrategy`` ``max: N`` threshold fails it exactly
-      like any other too-old dataset, with no special case needed anywhere
-      downstream.
-    - Some null timestamps: ``max_value`` already ignores nulls when
-      computing the max, so this rule sees the same value it would if
-      those rows didn't exist.
-    - A timestamp in the future: reported as a *negative* number of
-      minutes, not clamped to zero. Clamping would be a judgment call
-      ("negative freshness doesn't make sense, so treat it as fresh") that
-      belongs to a ThresholdStrategy, not this rule -- and reporting the
-      true value lets a policy author catch clock-skew data with a
-      ``min: 0`` threshold if they choose to.
+    - Empty table or all-null column: ``inf`` (always fails a ``max`` threshold).
+    - Null timestamps are ignored.
+    - Future timestamps give a negative value (not clamped), so a ``min: 0``
+      threshold can catch clock skew.
     """
 
     rule_type: ClassVar[str] = "freshness"

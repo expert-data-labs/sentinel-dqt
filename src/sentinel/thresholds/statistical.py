@@ -1,11 +1,4 @@
-"""StatisticalThresholdStrategy: judge a Metric against a
-mean +/- n_sigma * standard-deviation band computed from its history.
-
-Delegates the actual bound math to sentinel.thresholds._stats
-(mean_stddev_bounds) rather than reimplementing it — see that module's
-docstring for why it's shared with MedianMadStrategy rather than each
-strategy owning a private copy.
-"""
+"""StatisticalThresholdStrategy: mean +/- n_sigma * stdev of history."""
 
 from __future__ import annotations
 
@@ -34,25 +27,14 @@ def _describe_expectation(
 
 @register_threshold_strategy
 class StatisticalThresholdStrategy:
-    """Judges a Metric against ``mean(history) +/- n_sigma * stdev(history)``.
+    """Pass if the value is within ``mean +/- n_sigma * stdev`` of history.
 
-    ``config.params``:
-        n_sigma (default 3.0): how many standard deviations from the mean
-            still count as acceptable.
-        min_history (default 2): the fewest historical Metrics required.
-            Clamped up to 2 regardless of what's configured lower, since
-            a standard deviation is undefined for fewer than two values —
-            this is a hard mathematical floor, not a policy choice.
+    Params:
 
-    Assumes ``history``'s values are approximately normally distributed:
-    a mean and standard deviation describe a genuinely "typical range"
-    only under something like that assumption. This is not checked or
-    enforced — a skewed or multimodal history will still produce a
-    number, just not a meaningful one. MedianMadStrategy is the
-    documented alternative when a history is known or suspected to
-    contain outliers or a non-normal shape (see its own docstring, and
-    docs/architecture/0005-milestone-4-design.md Part 6/7 for a worked
-    comparison on an outlier-contaminated history).
+    - ``n_sigma`` (default 3.0)
+    - ``min_history`` (default 2; never below 2, since stdev needs 2 values)
+
+    Assumes roughly normal data. Use MedianMadStrategy if history has outliers.
     """
 
     strategy_type: ClassVar[str] = "statistical"

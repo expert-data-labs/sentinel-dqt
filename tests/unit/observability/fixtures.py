@@ -1,29 +1,13 @@
-"""A single, deterministic, hand-built persisted history shared by every
-observability test module -- one fixture, reused, rather than six
-slightly-different ad hoc ones (test_queries.py, test_health.py's
-integration-flavored cases, and tests/integration/
-test_observability_end_to_end.py all build on this).
+"""Deterministic stored history shared by the observability tests.
 
-Deliberately constructs ValidationRun/QualityEvent/Incident objects by
-hand and persists them directly via persist_validation_run, the same
-style tests/unit/persistence/test_writer.py already uses -- not a real
-ValidationOrchestrator.run() -- so every value here (which rule failed,
-when, at what priority) is exactly what the test asserts against,
-matching the milestone's own "deterministic test data" instruction.
+Built by hand and saved with persist_validation_run so every value is known.
+Times are relative to ``AS_OF``:
 
-Covers every scenario milestone 6's own test-data list asks for: a
-healthy dataset (``orders``), an occasional/first-occurrence failure
-(``payments`` / ``row_count``), a recurring failure (``payments`` /
-``null_rate``), a persistent failure (the same pair, still failing at
-``AS_OF``), a WARNING-priority incident (``customers``), a
-HIGH-priority incident, a CRITICAL-priority incident, multiple
-validation runs spanning more than one time window (10 days, 5 days,
-2 days, 3 hours before ``AS_OF``), and enough metric history for a
-trend. ``UNVALIDATED_DATASET_ID`` is registered directly with a raw SQL
-insert (there is no "register a dataset with no runs yet" call in the
-production write path -- persist_validation_run always upserts a
-dataset alongside a run) specifically to exercise Dataset Health's
-UNKNOWN case: a dataset that exists but has never been validated.
+- orders: always passes (healthy)
+- payments/null_rate: fails at t-10d, t-5d, t-2d, t-3h (recurring, then persistent)
+- payments/row_count: fails once at t-2d
+- customers: one WARNING incident
+- UNVALIDATED_DATASET_ID: registered but never run (UNKNOWN health)
 """
 
 from __future__ import annotations
@@ -132,9 +116,7 @@ def _run(
 
 
 def seed_default_fixture(conn: duckdb.DuckDBPyConnection) -> None:
-    """Persist the full deterministic history described in this module's
-    docstring. Call once per test (against a fresh temp-file connection)
-    before exercising ObservabilityQueryService or health.py against it."""
+    """Write the fixture history to ``conn``. Call once per test on a fresh store."""
     orders = _dataset(ORDERS_ID, Criticality.HIGH)
     payments = _dataset(PAYMENTS_ID, Criticality.CRITICAL)
     customers = _dataset(CUSTOMERS_ID, Criticality.MEDIUM)
@@ -248,11 +230,7 @@ def seed_default_fixture(conn: duckdb.DuckDBPyConnection) -> None:
     )
     persist_validation_run(conn, _run(customers, started_at, [event], [incident]))
 
-    # -- a dataset that has never been validated (Dataset Health: UNKNOWN) --
-    # No production code path registers a dataset without a run
-    # (persist_validation_run always upserts both together), so this one
-    # row is inserted directly -- exactly the state a freshly-registered,
-    # never-yet-run dataset would be in.
+    # A dataset with no runs. No production path does this, so insert directly.
     conn.execute(
         """
         INSERT INTO datasets

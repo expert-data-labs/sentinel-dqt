@@ -1,10 +1,4 @@
-"""A dict-based registry mapping a strategy_type string (a ThresholdConfig's
-``strategy`` field) to the ThresholdStrategy implementation that handles it.
-
-Mirrors sentinel.rules.registry exactly, for the same reason: a new
-ThresholdStrategy registers itself with ``@register_threshold_strategy``
-and the orchestrator never needs to change to know about it.
-"""
+"""Maps a strategy_type string to its ThresholdStrategy class."""
 
 from __future__ import annotations
 
@@ -18,11 +12,8 @@ class ThresholdStrategyNotRegisteredError(Exception):
 
 
 def register_threshold_strategy(cls: type[ThresholdStrategy]) -> type[ThresholdStrategy]:
-    """Class decorator: registers ``cls`` under its own ``strategy_type``.
-
-    Reads the key from the class itself, rather than taking it as a
-    decorator argument — the same reasoning as register_rule: exactly one
-    place a strategy's type name is spelled.
+    """Class decorator: register ``cls`` under its ``strategy_type``. Rejects
+    duplicates.
     """
     strategy_type = cls.strategy_type
     if strategy_type in _REGISTRY:
@@ -36,12 +27,8 @@ def register_threshold_strategy(cls: type[ThresholdStrategy]) -> type[ThresholdS
 
 
 def get_threshold_strategy(strategy_type: str) -> ThresholdStrategy:
-    """Resolve and instantiate the ThresholdStrategy registered for
-    ``strategy_type``.
-
-    Raises ThresholdStrategyNotRegisteredError, not a bare KeyError, so a
-    caller can show a person "policy references threshold strategy X, which
-    isn't implemented" instead of an unexplained lookup failure.
+    """Return a new instance for ``strategy_type``, or raise
+    ThresholdStrategyNotRegisteredError.
     """
     try:
         strategy_cls = _REGISTRY[strategy_type]

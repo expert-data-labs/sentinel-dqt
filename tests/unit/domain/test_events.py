@@ -71,9 +71,7 @@ def test_quality_event_details_defaults_to_none() -> None:
 
 
 def test_quality_event_details_passes_through_from_its_metric() -> None:
-    """Milestone 3: details is a read-only passthrough over Metric.details,
-    the same pattern actual/expected/status already use over their own
-    underlying fields."""
+    """``details`` reads Metric.details."""
     event = QualityEvent(
         severity=Severity.WARNING,
         blocking=True,
@@ -98,11 +96,7 @@ def test_quality_event_threshold_details_defaults_to_none() -> None:
 
 
 def test_quality_event_threshold_details_passes_through_from_its_threshold_result() -> None:
-    """Milestone 4: threshold_details mirrors details (Milestone 3) exactly,
-    but over ThresholdResult.details instead of Metric.details — the two
-    stay distinct properties because they answer different questions (what
-    a Rule observed vs. how a ThresholdStrategy judged it), not because
-    QualityEvent has grown a special case for either one."""
+    """``threshold_details`` reads ThresholdResult.details (separate from ``details``)."""
     baseline_json = '{"baseline": 1000.0, "lower": 900.0, "upper": 1100.0, "n": 30}'
     event = QualityEvent(
         severity=Severity.WARNING,

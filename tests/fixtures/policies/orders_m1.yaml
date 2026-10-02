@@ -1,11 +1,5 @@
-# Milestone 1's subset of orders.yaml: the same dataset and the same three
-# rule types Milestone 1 actually implements (row_count, null_rate,
-# uniqueness). orders.yaml itself is left as the PRD's full four-rule
-# example (it also declares a `freshness` rule) for the policy loader's own
-# tests — that rule type has no Rule implementation until Milestone 3, so
-# running orders.yaml itself through a real ValidationOrchestrator would
-# raise RuleNotRegisteredError today. This fixture is what Milestone 1's
-# end-to-end integration test runs instead.
+# Three-rule subset of orders.yaml (row_count, null_rate, uniqueness),
+# used by the end-to-end integration tests.
 dataset: orders
 rules:
   - name: row_count

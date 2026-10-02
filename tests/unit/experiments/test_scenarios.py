@@ -1,8 +1,4 @@
-"""Pins the shape of each synthetic scenario -- point counts, anomaly
-counts, and determinism -- independently of any strategy. If a scenario's
-generator ever changes (a different n, a different noise range, a
-different seed), this is what should fail first, before any confusion-
-matrix number in test_runner.py looks merely "a little off"."""
+"""Pins each scenario's shape (point and anomaly counts) and determinism."""
 
 from __future__ import annotations
 
@@ -20,9 +16,7 @@ def test_first_monday_is_actually_a_monday() -> None:
 
 
 def test_scenario_generators_are_deterministic() -> None:
-    """Same call twice -> identical values, since each generator seeds
-    its own random.Random(_SEED) rather than sharing process-global
-    random state."""
+    """Each generator uses its own seeded Random, so repeated calls match."""
     first = [p.metric.value for p in scenario_a_stable()]
     second = [p.metric.value for p in scenario_a_stable()]
     assert first == second

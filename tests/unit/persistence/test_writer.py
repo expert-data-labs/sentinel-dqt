@@ -114,7 +114,7 @@ def test_persist_two_runs_for_the_same_dataset_creates_two_run_rows(tmp_path: Pa
     assert count == (2,)
 
 
-# -- Milestone 6: incidents and quality_events.details --
+# -- incidents and quality_events.details --
 
 
 def _components() -> IncidentScoreComponents:
@@ -128,9 +128,7 @@ def _components() -> IncidentScoreComponents:
 
 
 def _run_with_incident(dataset: Dataset | None = None) -> ValidationRun:
-    """Same shape as ``_run()`` above, but with ``details`` set on the
-    ThresholdResult and one Incident attached to its one non-PASS event --
-    exactly the case ``_run()`` (Milestones 0-4) never exercised."""
+    """Like ``_run()`` but with threshold details and one Incident."""
     started = datetime(2026, 8, 26, 12, 0, 0, tzinfo=UTC)
     finished = datetime(2026, 8, 26, 12, 0, 1, tzinfo=UTC)
     metric = Metric(metric_name="row_count", value=12.0, computed_at=finished)
@@ -174,9 +172,7 @@ def test_persist_writes_the_quality_event_details_column(tmp_path: Path) -> None
 def test_persist_writes_a_null_details_when_the_threshold_result_has_none(
     tmp_path: Path,
 ) -> None:
-    """Regression check: _run() (Milestones 0-4's own fixture, unmodified
-    above) never sets ThresholdResult.details -- confirms the new column
-    doesn't break the pre-existing no-details path."""
+    """No threshold details are stored as NULL."""
     conn = _conn(tmp_path)
     run_id = persist_validation_run(conn, _run())
 
@@ -197,8 +193,7 @@ def test_persist_writes_one_incident_row_per_incident(tmp_path: Path) -> None:
 
 
 def test_persist_writes_no_incident_rows_when_the_run_has_none(tmp_path: Path) -> None:
-    """_run() (Milestones 0-4) has a FAIL event but no Incident -- the
-    pre-Milestone-5 shape every existing call site still produces."""
+    """A run without incidents writes no incident rows."""
     conn = _conn(tmp_path)
     run_id = persist_validation_run(conn, _run())
 
@@ -211,10 +206,7 @@ def test_persist_writes_no_incident_rows_when_the_run_has_none(tmp_path: Path) -
 def test_persist_links_an_incident_to_its_own_quality_event_not_another(
     tmp_path: Path,
 ) -> None:
-    """With two non-PASS events on one run, each Incident's persisted
-    quality_event_id must point at the SAME event it was built from --
-    proves the identity-keyed lookup in mapping.to_rows (not a positional
-    guess) actually threads the right id through."""
+    """With two failed events, each incident links to its own event."""
     conn = _conn(tmp_path)
     started = datetime(2026, 8, 26, 12, 0, 0, tzinfo=UTC)
     finished = datetime(2026, 8, 26, 12, 0, 1, tzinfo=UTC)
