@@ -1,0 +1,33 @@
+# Blocking vs non-blocking rules. 6 of 30 products have no description:
+# that rule fails, but it's informational and non-blocking, so the pipeline
+# continues (exit 0). An incident is still recorded: WARNING priority, since the
+# null rate is 4x the limit even though severity is info and criticality low.
+dataset: products
+rules:
+  - name: row_count
+    type: row_count
+    threshold:
+      strategy: static
+      min: 10
+  - name: sku_unique
+    type: uniqueness
+    column: sku
+    severity: high
+    threshold:
+      strategy: static
+      max: 0
+  - name: price_not_null
+    type: null_rate
+    column: price
+    severity: high
+    threshold:
+      strategy: static
+      max: 0
+  - name: description_not_null
+    type: null_rate
+    column: description
+    severity: info
+    blocking: false             # record it, but don't fail the pipeline
+    threshold:
+      strategy: static
+      max: 0.05

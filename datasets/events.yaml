@@ -1,0 +1,10 @@
+# A Postgres table, loaded (with fresh timestamps) by
+# `uv run python -m examples.setup` into the `sentinel_examples` database on
+# the docker compose server. config_reference is a connection URL plus table.
+id: events
+name: events
+source_type: postgres
+environment: local
+owner: data-platform-team
+criticality: high
+config_reference: postgresql://sentinel:sentinel@localhost:5432/sentinel_examples?table=events

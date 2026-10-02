@@ -1,0 +1,52 @@
+# The four adaptive threshold strategies side by side on the same metric
+# (today's row count: 1000). They run as non-blocking "shadow" rules, so you
+# can compare their verdicts without failing the pipeline; only the static
+# sanity check is blocking.
+#
+# Each rule keeps its own history (by rule name), backfilled by
+# `uv run python -m examples.setup`. Expected verdicts depend on today's
+# weekday (see docs/examples.md).
+dataset: signups
+rules:
+  - name: row_count_sanity
+    type: row_count
+    severity: critical
+    threshold:
+      strategy: static
+      min: 100
+
+  # Mean of recent history +/- 10%. Ignores the weekly pattern.
+  - name: row_count_vs_recent_mean
+    type: row_count
+    blocking: false
+    threshold:
+      strategy: percentage_deviation
+      max_deviation: 0.10
+      min_history: 7
+
+  # Mean +/- 3 standard deviations. The weekly swing makes the band very wide.
+  - name: row_count_statistical
+    type: row_count
+    blocking: false
+    threshold:
+      strategy: statistical
+      n_sigma: 3
+      min_history: 7
+
+  # Median +/- 3 scaled MADs. Robust to outliers, but locks onto weekdays.
+  - name: row_count_median_mad
+    type: row_count
+    blocking: false
+    threshold:
+      strategy: median_mad
+      n_mad: 3
+      min_history: 7
+
+  # Mean +/- 3 standard deviations of the same weekday only.
+  - name: row_count_seasonal
+    type: row_count
+    blocking: false
+    threshold:
+      strategy: seasonal
+      n_sigma: 3
+      min_history: 3

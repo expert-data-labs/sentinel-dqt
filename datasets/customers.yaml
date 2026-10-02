@@ -1,0 +1,8 @@
+# A clean dataset: every rule passes, so `sentinel validate customers` exits 0.
+id: customers
+name: customers
+source_type: duckdb
+environment: local
+owner: crm-team
+criticality: medium
+config_reference: data/customers.csv

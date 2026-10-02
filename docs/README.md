@@ -2,6 +2,10 @@
 
 Start with the [project README](../README.md) for installation and a quick start. This folder holds the reference material.
 
+## Examples
+
+- [Guided tour](examples.md): five example datasets that exercise every rule, threshold strategy and data source, with expected results and things to try
+
 ## Architecture
 
 - [Architecture Overview](architecture/overview.md): layers, dependency rules, the `sentinel validate` execution flow, and the patterns used

@@ -1,0 +1,10 @@
+# Daily signups with a weekly pattern (~1000 on weekdays, ~500 at weekends).
+# Adaptive thresholds need history: run `uv run python -m examples.setup`
+# first, which backfills the last 28 days.
+id: signups
+name: signups
+source_type: duckdb
+environment: local
+owner: growth-team
+criticality: medium
+config_reference: data/signups.csv

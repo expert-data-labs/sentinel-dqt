@@ -1,0 +1,34 @@
+# What a passing policy looks like. Try breaking it: blank out an email or
+# duplicate a row in data/customers.csv and run it again.
+dataset: customers
+version: "2026-10-01"          # optional; recorded with every run
+rules:
+  - name: row_count
+    type: row_count
+    threshold:
+      strategy: static
+      min: 10
+  - name: email_not_null
+    type: null_rate
+    column: email
+    severity: high
+    threshold:
+      strategy: static
+      max: 0                    # no missing emails at all
+  - name: customer_id_unique
+    type: uniqueness
+    column: customer_id
+    severity: critical
+    threshold:
+      strategy: static
+      max: 0
+  - name: customers_schema
+    type: schema
+    expected_schema:
+      customer_id: integer
+      email: string
+      country: string
+      signup_date: date
+    threshold:
+      strategy: static
+      max: 0                    # any missing, extra or retyped column fails

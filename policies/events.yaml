@@ -1,0 +1,41 @@
+# The same rules work on Postgres as on CSV files. Freshness passes because
+# the setup step writes events from the last 30 minutes; rerun the setup if
+# it has been more than an hour.
+dataset: events
+rules:
+  - name: row_count
+    type: row_count
+    threshold:
+      strategy: static
+      min: 100
+  - name: user_id_null_rate
+    type: null_rate
+    column: user_id
+    severity: high
+    threshold:
+      strategy: static
+      max: 0.02                 # up to 2% anonymous events
+  - name: event_id_unique
+    type: uniqueness
+    column: event_id
+    severity: critical
+    threshold:
+      strategy: static
+      max: 0
+  - name: events_freshness
+    type: freshness
+    column: occurred_at
+    severity: high
+    threshold:
+      strategy: static
+      max: 60                   # minutes since the newest event
+  - name: events_schema
+    type: schema
+    expected_schema:
+      event_id: integer
+      user_id: string
+      event_type: string
+      occurred_at: timestamp
+    threshold:
+      strategy: static
+      max: 0

@@ -111,6 +111,17 @@ uv sync --group dashboard
 uv run streamlit run dashboard/app.py
 ```
 
+### Explore every feature
+
+Four more example datasets sit next to `orders`: a clean one, one with a non-blocking failure, one comparing all four adaptive threshold strategies, and a Postgres table. Prepare them once, then validate each:
+
+```bash
+uv run python -m examples.setup     # backfills history + loads the Postgres example
+uv run sentinel validate signups    # customers, products, orders, signups, events
+```
+
+The [guided tour](docs/examples.md) explains what each one shows, the expected result, and things to try.
+
 ### Guided demo
 
 `demo/run_demo.sh` replays four daily loads of a critical `payments` dataset (a clean load, a bad load, the problem persisting, then a partial fix) into an isolated store. It then shows the run history:
@@ -195,7 +206,8 @@ src/sentinel/
   cli/              `sentinel validate`, `sentinel history`, `sentinel db`
   registration.py   Registers every built-in plug-in
 dashboard/app.py    Streamlit dashboard
-datasets/ policies/ data/   Example dataset, policy and sample data
+datasets/ policies/ data/   Example datasets, policies and sample data (docs/examples.md)
+examples/           Setup for the examples (history backfill, Postgres table)
 demo/               Self-contained guided demo
 experiments/        Reproducible threshold-strategy evaluation
 tests/unit/         Mirrors src/sentinel/

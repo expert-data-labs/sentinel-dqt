@@ -1,0 +1,9 @@
+# Low-criticality catalog data. One non-blocking rule fails: the run records
+# an incident, but `sentinel validate products` still exits 0.
+id: products
+name: products
+source_type: duckdb
+environment: local
+owner: catalog-team
+criticality: low
+config_reference: data/products.csv
