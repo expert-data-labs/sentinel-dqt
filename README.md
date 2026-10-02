@@ -128,7 +128,7 @@ To see how adaptive thresholds behave over weeks, replay 8 weeks of daily loads 
 uv run python -m examples.simulate  # --source postgres|mysql|mongodb, --days, --seed
 ```
 
-The [guided tour](docs/examples.md) explains what each one shows, the expected result, and things to try.
+[Sentinel by example](docs/examples/README.md) walks through each one as a real-world scenario: what it models, the policy line by line, the output and how to read it, and things to try.
 
 ### Guided demo
 
@@ -214,7 +214,7 @@ src/sentinel/
   cli/              `sentinel validate`, `sentinel history`, `sentinel db`
   registration.py   Registers every built-in plug-in
 dashboard/app.py    Streamlit dashboard
-datasets/ policies/ data/   Example datasets, policies and sample data (docs/examples.md)
+datasets/ policies/ data/   Example datasets, policies and sample data (docs/examples/)
 examples/           Example setup (history backfill, database tables) and the threshold simulator
 demo/               Self-contained guided demo
 experiments/        Reproducible threshold-strategy evaluation

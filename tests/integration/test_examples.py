@@ -1,4 +1,4 @@
-"""Pins the outcomes the example datasets promise in docs/examples.md.
+"""Pins the outcomes the example datasets promise in docs/examples/.
 
 If an example's data, policy or a strategy changes so that the walkthrough
 would no longer be true, one of these fails.

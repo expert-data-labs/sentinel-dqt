@@ -4,7 +4,7 @@ Start with the [project README](../README.md) for installation and a quick start
 
 ## Examples
 
-- [Guided tour](examples.md): five example datasets that exercise every rule, threshold strategy and data source, with expected results and things to try
+- [Sentinel by example](examples/README.md): twelve scenarios for new users, from a passing dataset to adaptive thresholds, databases, the simulator, the dashboard and validating your own data
 
 ## Architecture
 

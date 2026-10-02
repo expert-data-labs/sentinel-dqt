@@ -5,7 +5,7 @@
 #
 # Each rule keeps its own history (by rule name), backfilled by
 # `uv run python -m examples.setup`. Expected verdicts depend on today's
-# weekday (see docs/examples.md).
+# weekday (see docs/examples/04-signups-adaptive-thresholds.md).
 dataset: signups
 rules:
   - name: row_count_sanity

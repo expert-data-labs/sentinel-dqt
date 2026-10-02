@@ -249,7 +249,7 @@ def main() -> None:
     _try("shipments:   ", load_shipments_table, compose)
     _try("reviews:     ", load_reviews_collection, compose)
     _try("clickstream: ", write_clickstream_parquet, "")
-    print("\nNext: uv run sentinel validate signups   (see docs/examples.md)")
+    print("\nNext: uv run sentinel validate signups   (see docs/examples/README.md)")
 
 
 if __name__ == "__main__":

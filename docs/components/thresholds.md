@@ -116,7 +116,7 @@ Because `InsufficientHistoryError` aborts the run before persistence, a **new** 
 
 ### Choosing and tuning a strategy
 
-`python -m examples.simulate` replays weeks of daily loads, with anomalies injected on known days, through the real pipeline (following the cold-start steps above), and prints a scorecard of caught, missed and false alarms for every rule in `policies/simulated_orders.yaml`. Edit the policy, rerun, and compare. See the [examples guide](../examples.md#10-testing-adaptive-thresholds-with-the-simulator).
+`python -m examples.simulate` replays weeks of daily loads, with anomalies injected on known days, through the real pipeline (following the cold-start steps above), and prints a scorecard of caught, missed and false alarms for every rule in `policies/simulated_orders.yaml`. Edit the policy, rerun, and compare. See [Replay eight weeks](../examples/09-simulator-adaptive-thresholds.md).
 
 ---
 
