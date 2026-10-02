@@ -59,12 +59,13 @@ class MetricTrendPoint:
     """One point on a metric trend.
 
     ``threshold_details`` is the stored baseline/bounds JSON from validation
-    time.
+    time; ``status`` is that run's verdict for the rule.
     """
 
     computed_at: datetime
     value: float
     threshold_details: str | None
+    status: str | None = None
 
 
 @dataclass(frozen=True)

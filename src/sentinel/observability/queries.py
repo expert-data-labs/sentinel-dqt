@@ -262,7 +262,7 @@ class ObservabilityQueryService:
         cutoff = _cutoff(window, as_of)
         rows = self._conn.execute(
             """
-            SELECT m.value, m.computed_at, qe.details
+            SELECT m.value, m.computed_at, qe.details, qe.status
             FROM metrics m
             JOIN validation_runs vr ON vr.id = m.validation_run_id
             LEFT JOIN quality_events qe ON qe.metric_id = m.id
@@ -272,8 +272,10 @@ class ObservabilityQueryService:
             [dataset_id, metric_name, cutoff],
         ).fetchall()
         return [
-            MetricTrendPoint(computed_at=computed_at, value=value, threshold_details=details)
-            for value, computed_at, details in rows
+            MetricTrendPoint(
+                computed_at=computed_at, value=value, threshold_details=details, status=status
+            )
+            for value, computed_at, details, status in rows
         ]
 
     # -- Failed Rules --

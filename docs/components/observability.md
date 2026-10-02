@@ -10,6 +10,7 @@ The observability layer answers "how healthy is our data, and what keeps breakin
 |---|---|
 | `observability/views.py` | Frozen read models returned to callers |
 | `observability/health.py` | Pure derivation rules: dataset health, recurrence classification. No database access. |
+| `observability/bands.py` | Pure: turns a strategy's stored threshold details into the (lower, upper) range it allowed. |
 | `observability/queries.py` | `ObservabilityQueryService(conn)`: one method per view, each a single aggregating query |
 | `dashboard/app.py` | Streamlit app. Reads only through `ObservabilityQueryService`. |
 
@@ -77,7 +78,7 @@ The dashboard reads `SENTINEL_DATABASE_URL` like the CLI. Run `sentinel validate
 | Recent Incidents | Incidents in the window with priority, score and top reason |
 | Failed Rules | Rules with failures in the window, most frequent first, with their current priority |
 | Recurring Failures | First occurrence, recurring or persistent, per dataset and rule |
-| Metric Trends | Line chart of one rule's metric over the window, plus the latest threshold details. Requires a selected dataset. |
+| Metric Trends | One rule's metric over the window, drawn over the range its threshold allowed on each run (shaded), with failed runs marked in red. The band comes from each run's stored threshold details (`observability/bands.py`), so it shows what the strategy actually used that day. Requires a selected dataset. |
 | Quality History | Per-run summary for the selected dataset |
 
 **Notes:**

@@ -15,10 +15,14 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import altair as alt
+import pandas as pd
 import streamlit as st
 from psycopg_pool import ConnectionPool
 
+from sentinel.observability.bands import expected_range
 from sentinel.observability.queries import ObservabilityQueryService, TimeWindow
+from sentinel.observability.views import MetricTrendPoint
 from sentinel.persistence.engine import StoreConnection, create_pool
 
 _HEALTH_GLYPH: dict[str, str] = {
@@ -54,6 +58,56 @@ def _dataset_health_table(views: list) -> list[dict[str, object]]:
         }
         for v in views
     ]
+
+
+def _trend_chart(points: list[MetricTrendPoint]) -> alt.LayerChart:
+    """Measured values over the expected range each run was judged against."""
+    rows = []
+    for p in points:
+        lower, upper = expected_range(p.threshold_details)
+        rows.append(
+            {
+                "computed_at": p.computed_at,
+                "value": p.value,
+                "lower": lower,
+                "upper": upper,
+                "result": "not passed" if p.status not in (None, "pass") else "passed",
+            }
+        )
+    # A DataFrame lets Altair serialise timestamps as ISO strings Vega can parse.
+    frame = pd.DataFrame(rows, columns=["computed_at", "value", "lower", "upper", "result"])
+    frame["computed_at"] = pd.to_datetime(frame["computed_at"], utc=True)
+    base = alt.Chart(frame).encode(x=alt.X("computed_at:T", title=None))
+    band = (
+        base.transform_filter("datum.lower != null && datum.upper != null")
+        .mark_area(opacity=0.25, color="#4c78a8")
+        .encode(y=alt.Y("lower:Q", title="value"), y2="upper:Q")
+    )
+    lower_edge = (
+        base.transform_filter("datum.lower != null")
+        .mark_line(strokeDash=[4, 3], color="#4c78a8", opacity=0.7)
+        .encode(y="lower:Q")
+    )
+    upper_edge = (
+        base.transform_filter("datum.upper != null")
+        .mark_line(strokeDash=[4, 3], color="#4c78a8", opacity=0.7)
+        .encode(y="upper:Q")
+    )
+    line = base.mark_line(color="#9ecae9").encode(y="value:Q")
+    failures = (
+        base.transform_filter("datum.result == 'not passed'")
+        .mark_point(filled=True, size=70, color="#e45756")
+        .encode(
+            y="value:Q",
+            tooltip=[
+                alt.Tooltip("computed_at:T", title="run"),
+                alt.Tooltip("value:Q", format=",.4~f"),
+                alt.Tooltip("lower:Q", format=",.4~f", title="allowed from"),
+                alt.Tooltip("upper:Q", format=",.4~f", title="allowed to"),
+            ],
+        )
+    )
+    return alt.layer(band, lower_edge, upper_edge, line, failures)
 
 
 def main() -> None:
@@ -164,13 +218,10 @@ def _render(service: ObservabilityQueryService) -> None:
             metric_name = st.selectbox("Metric", rule_names)
             points = service.metric_trend(dataset_id, metric_name, window, as_of)
             if points:
-                st.line_chart(
-                    {
-                        "computed_at": [p.computed_at for p in points],
-                        "value": [p.value for p in points],
-                    },
-                    x="computed_at",
-                    y="value",
+                st.altair_chart(_trend_chart(points), use_container_width=True)
+                st.caption(
+                    "Shaded: the range the threshold allowed on each run. "
+                    "Red points: runs where this rule did not pass."
                 )
                 with st.expander("Latest threshold details"):
                     latest = points[-1]

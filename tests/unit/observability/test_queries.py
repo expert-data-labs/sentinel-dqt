@@ -155,6 +155,12 @@ def test_metric_trend_carries_the_threshold_details_json(store: StoreConnection)
     assert '"actual": 0.18' in points[0].threshold_details  # type: ignore[operator]
 
 
+def test_metric_trend_carries_each_runs_status(store: StoreConnection) -> None:
+    service = _service(store)
+    points = service.metric_trend(PAYMENTS_ID, "null_rate", TimeWindow.LAST_30D, AS_OF)
+    assert [p.status for p in points] == ["fail"] * 4
+
+
 def test_metric_trend_respects_the_time_window(store: StoreConnection) -> None:
     service = _service(store)
     points = service.metric_trend(PAYMENTS_ID, "null_rate", TimeWindow.LAST_7D, AS_OF)
