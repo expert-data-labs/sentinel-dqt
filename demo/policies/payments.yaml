@@ -1,0 +1,24 @@
+# Phase 3 demo policy. Three rules with deliberately different severities
+# so the same dataset produces CRITICAL and HIGH incidents side by side.
+dataset: payments
+rules:
+  - name: payment_count
+    type: row_count
+    threshold:
+      strategy: static
+      min: 10
+    # severity omitted -> default WARNING
+  - name: amount_not_null
+    type: null_rate
+    column: amount
+    severity: critical
+    threshold:
+      strategy: static
+      max: 0.05
+  - name: payment_id_unique
+    type: uniqueness
+    column: payment_id
+    severity: high
+    threshold:
+      strategy: static
+      max: 0

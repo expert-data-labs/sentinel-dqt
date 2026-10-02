@@ -1,61 +1,208 @@
 # Sentinel
 
-A configurable data reliability and threshold intelligence platform. Sentinel separates data
-quality policy (what "good data" means for a dataset) from pipeline implementation, so teams
-declare expectations in configuration and Sentinel handles execution, threshold evaluation,
-historical context, and incident prioritization.
+**A configurable data reliability platform.** Sentinel lets data teams declare what "good data" means for each dataset in YAML, then validates every load against it, judges the results with static or history-aware thresholds, ranks failures by how much they matter, and keeps a queryable history of every run.
 
-**Status:** Milestones 0-6 complete. The domain model, the three pluggable interfaces (Rule,
-ThresholdStrategy, DataSource), a CLI, DuckDB and Postgres-backed persistence, and concrete Rule
-and ThresholdStrategy implementations are all in place and tested. Milestone 4 adds
-historical-metrics-aware ("adaptive") threshold strategies -- Percentage Deviation, Statistical
-(Mean/StdDev), Median/MAD, and Seasonal Baseline -- alongside the original static thresholds, plus
-a synthetic evaluation framework (`experiments/threshold_intelligence/`) that measures each
-strategy's false-positive/false-negative behavior against controlled synthetic scenarios.
-Milestone 5 turns a non-passing validation into an explainable, prioritized `Incident`
-(INFO/WARNING/HIGH/CRITICAL) by combining validation severity, dataset criticality, deviation
-magnitude, historical failure frequency, and anomaly confidence into one deterministic, weighted
-score -- deliberately no ML, microservices, or external incident-management integrations.
-Milestone 6 adds a read-only Observability layer: a new `ObservabilityQueryService` (Dataset
-Health, Quality History, Metric Trends, Failed Rules, Incident History, Recurring Failures), two
-additive schema changes so `Incident` and each threshold's computed bounds are now persisted, and
-a single-file Streamlit dashboard (`dashboard/app.py`) that reads only through that query service
--- Observability never reimplements validation, threshold, or prioritization logic.
+Pipelines call one command and act on its exit code:
 
-See `docs/architecture/0007-milestone-6-design.md` for the Milestone 6 design, engineering
-analysis, and verification notes, `docs/architecture/0006-milestone-5-design.md` for the
-Milestone 5 design, `docs/architecture/0005-milestone-4-design.md` for the Milestone 4 design and
-findings (including a "Definition of Done" section answering when each strategy is and isn't
-appropriate), `docs/experiments/milestone-4-results.md` for the raw results, and
-`docs/architecture/0001-milestone-0-architecture.md` onward for the earlier milestones' approved
-architecture.
+```bash
+sentinel validate orders    # exit 0 = pass, 2 = a blocking rule failed
+```
+
+![Sentinel architecture](docs/assets/architecture.svg)
+
+---
+
+## Why Sentinel
+
+Quality checks usually live inside pipeline code: a `COUNT(*)` with an `assert`, a hard-coded threshold, no record of what yesterday looked like, and every failure equally loud. Sentinel separates those concerns:
+
+| Concern | In Sentinel |
+|---|---|
+| **What to check** | Declared once per dataset in a policy file, reviewed like code |
+| **How to measure it** | Reusable rules that work unchanged on CSV/DuckDB and Postgres |
+| **What counts as acceptable** | Pluggable threshold strategies, from fixed bounds to seasonal baselines learned from history |
+| **Whether it matters** | Every failure becomes a prioritized, explained incident |
+| **What happened before** | Every measurement, verdict and incident is persisted and queryable |
+
+Measurements are stored separately from pass/fail verdicts. That is what makes adaptive thresholds, trend charts and replaying a stricter threshold against history possible.
+
+## Features
+
+- **Five rule types:** row count, null rate, uniqueness, freshness, schema validation
+- **Two data sources:** CSV files through DuckDB, and PostgreSQL tables
+- **Five threshold strategies:**
+  - `static`
+  - `percentage_deviation`
+  - `statistical` (mean ± kσ)
+  - `median_mad` (robust to outliers)
+  - `seasonal` (per day of week)
+- **Incident prioritization:** a deterministic, explainable score from severity, dataset criticality, deviation, failure frequency and anomaly confidence, bucketed into INFO, WARNING, HIGH or CRITICAL
+- **Blocking-aware exit codes,** so a failure on a non-blocking rule is recorded without stopping the pipeline
+- **Run history** in an embedded DuckDB store, with `sentinel history` and a read-only Streamlit dashboard
+- **Extensible:** a new rule, strategy or data source is a new class plus one registration line, with no changes to existing code
+
+---
+
+## Quick start
+
+Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
+
+```bash
+git clone <this repo> && cd sentinel
+uv sync
+uv run sentinel validate orders
+```
+
+`orders` resolves to two files:
+
+```yaml
+# datasets/orders.yaml: where the data is and how important it is
+id: orders
+name: orders
+source_type: duckdb
+environment: local
+owner: data-platform-team
+criticality: high
+config_reference: data/orders.csv
+```
+
+```yaml
+# policies/orders.yaml: what "good" means (excerpt)
+dataset: orders
+rules:
+  - name: customer_id_not_null
+    type: null_rate
+    column: customer_id
+    threshold:
+      strategy: static
+      max: 0.01
+  - name: unique_order_id
+    type: uniqueness
+    column: order_id
+    threshold:
+      strategy: static
+      max: 0
+```
+
+The bundled sample deliberately contains problems: too few rows, a null `customer_id`, a duplicated order, and a stale timestamp. Illustrative output (abridged):
+
+```text
+Dataset: orders
+Run ID:  6f0c2a8e-1d3b-4e5f-9a7c-2b8d4e6f1a3c
+Result:  FAIL (blocking)
+
+  ✗ row_count  actual=12  expected: row_count >= 1000
+      priority=WARNING score=49.9  Dataset criticality: HIGH
+  ✗ customer_id_not_null  actual=0.08333  expected: customer_id_not_null <= 0.01
+      priority=HIGH score=60.0  Dataset criticality: HIGH
+  ✗ unique_order_id  actual=1  expected: unique_order_id <= 0
+      priority=HIGH score=60.0  Dataset criticality: HIGH
+  ...
+```
+
+Then look at the history and the dashboard:
+
+```bash
+uv run sentinel history orders
+
+uv sync --group dashboard
+uv run streamlit run dashboard/app.py
+```
+
+### Guided demo
+
+`demo/run_demo.sh` replays four daily loads of a critical `payments` dataset (a clean load, a bad load, the problem persisting, then a partial fix) into an isolated store. It then shows the run history:
+
+```bash
+bash demo/run_demo.sh              # four validations + history
+bash demo/run_demo.sh dashboard    # open the dashboard on the demo store
+```
+
+It uses its own `demo/` datasets, policies and database and touches nothing else.
+
+---
+
+## Using Sentinel in a pipeline
+
+Add a validation step after each load and before anything downstream reads the data:
+
+```bash
+sentinel validate orders || exit $?
+```
+
+| Exit code | Meaning |
+|---|---|
+| `0` | No blocking rule failed. Non-blocking failures are still printed and recorded. |
+| `1` | A rule warned. Also returned for execution errors such as a malformed policy or an unreachable database, together with a traceback. |
+| `2` | A rule with `blocking: true` (the default) failed |
+
+Treat any non-zero code as "do not continue". Every completed run is persisted whatever its outcome, so `history` and the dashboard show non-blocking failures too.
+
+## Writing policies
+
+```yaml
+- name: daily_orders              # stable name: it is also the history key
+  type: row_count                 # row_count | null_rate | uniqueness | freshness | schema
+  severity: high                  # info | warning (default) | high | critical
+  blocking: true                  # default true
+  threshold:
+    strategy: seasonal            # static | percentage_deviation | statistical | median_mad | seasonal
+    n_sigma: 3
+    min_history: 2
+```
+
+- [Configuration reference](docs/components/configuration.md): every field of the dataset and policy files
+- [Rules](docs/components/rules.md): what each rule measures
+- [Threshold strategies](docs/components/thresholds.md): parameters, and when to use each strategy
+
+---
+
+## Architecture
+
+Sentinel is a single Python package with strict, inward-pointing dependencies:
+
+- **`domain/`:** plain data, no dependencies. *Definitions* (Policy, RuleConfig, ThresholdConfig, Dataset) are kept separate from immutable *facts* (Metric, ThresholdResult, QualityEvent, ValidationRun, Incident).
+- **`rules/`, `thresholds/`, `datasources/`:** pluggable `Protocol` interfaces, each with a decorator-based registry keyed by the string used in YAML.
+- **`orchestration/`, `prioritization/`:** pure coordination logic. History arrives through injected interfaces, so the core runs and is tested without any database.
+- **`persistence/`, `observability/`:** the DuckDB history store and the read-only query layer.
+- **`cli/`, `dashboard/`:** the edges. `cli/main.py` is the one place where concrete implementations are wired together.
+
+Read more:
+
+- [Architecture Overview](docs/architecture/overview.md): layers, dependency rules, execution sequence, patterns
+- [Design Decisions](docs/architecture/design-decisions.md): what was decided, what was rejected, and when to revisit
+- [Interactive architecture diagram](docs/assets/architecture.html) (open it locally in a browser)
+- [Full documentation index](docs/README.md)
 
 ## Project layout
 
-- `src/sentinel/domain/` — config-time definitions (`Policy`, `RuleConfig`, `ThresholdConfig`,
-  `Dataset`) and run-time facts (`Metric`, `QualityEvent`, `ValidationRun`). No behavior, only
-  structure — pydantic models at the external-input boundary, frozen dataclasses for facts.
-- `src/sentinel/rules/`, `src/sentinel/thresholds/`, `src/sentinel/datasources/` — the `Rule`,
-  `ThresholdStrategy`, and `DataSource` Protocols, each with a small dict-based registry. Empty of
-  concrete implementations until Milestone 1.
-- `src/sentinel/orchestration/` — `ValidationOrchestrator`, which runs a Policy's rules against a
-  Dataset's DataSource and assembles the outcome as a `ValidationRun`.
-- `src/sentinel/policy_loader/` — reads a policy YAML file into a validated `Policy`.
-- `src/sentinel/cli/` — empty stub; the CLI arrives in Milestone 2.
-- `src/sentinel/observability/` — read-only query layer for the dashboard (`ObservabilityQueryService`,
-  read models in `views.py`, pure Dataset-Health/Recurring-Failure derivation in `health.py`).
-  Consumes already-persisted runtime facts only; never reimplements validation/threshold/
-  prioritization logic.
-- `dashboard/app.py` — a single-file Streamlit app reading only through `ObservabilityQueryService`.
-- `tests/` — mirrors `src/sentinel/`. `tests/fixtures/policies/orders.yaml` is the PRD's example
-  policy; `tests/fixtures/data/orders.csv` is a small sample dataset for Milestone 1's rule tests —
-  nothing reads it yet, since there's no DuckDB adapter to load it with.
-- `tests/unit/doubles.py` — shared fakes (`FakeDataSource`, `DummyRule`, `DummyThresholdStrategy`)
-  used across the test suite instead of real implementations.
+```text
+src/sentinel/
+  domain/           Definitions and runtime facts (pydantic + frozen dataclasses)
+  config_loading.py Shared YAML -> validated model loader
+  policy_loader/    Policy YAML loader
+  dataset_loader/   Dataset YAML loader
+  rules/            Rule protocol, registry, 5 rules
+  datasources/      DataSource protocol, registry, DuckDB and Postgres adapters
+  thresholds/       ThresholdStrategy protocol, registry, 5 strategies, history interface
+  orchestration/    ValidationOrchestrator
+  prioritization/   IncidentPrioritizer and scoring model
+  persistence/      DuckDB schema, writer, history readers
+  observability/    Read-only query service and read models
+  cli/              `sentinel validate`, `sentinel history`
+  registration.py   Registers every built-in plug-in
+dashboard/app.py    Streamlit dashboard
+datasets/ policies/ data/   Example dataset, policy and sample data
+demo/               Self-contained guided demo
+experiments/        Reproducible threshold-strategy evaluation
+tests/unit/         Mirrors src/sentinel/
+tests/integration/  CLI, end-to-end, DuckDB/Postgres parity, observability
+docs/               Architecture, component reference, experiment results
+```
 
-## Development setup
+---
 
-This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
+## Development
 
 ```bash
 uv sync --all-groups
@@ -64,38 +211,56 @@ uv run ruff check .
 uv run mypy
 ```
 
-## Running in Docker
+CI (`.github/workflows/ci.yml`) runs lint, strict type checking and the full test suite against a real Postgres service on every push and pull request.
 
-```bash
-docker build -t sentinel .
-docker run --rm sentinel
-```
+### Postgres
 
-The image installs dependencies with uv and runs the test suite by default. There's nothing to
-serve yet — no CLI or API exists before Milestone 2 — so this is for reproducing the test run
-locally, not for deployment.
-
-## Running the dashboard (Milestone 6)
-
-```bash
-uv sync --group dashboard
-uv run streamlit run dashboard/app.py
-```
-
-`streamlit` is its own optional dependency group, separate from `dependencies`/`dev` -- `sentinel
-validate`/`sentinel history` users don't need a web framework installed. The dashboard is entirely
-read-only and reads only through `ObservabilityQueryService`; run `sentinel validate` a few times
-first so there's history for it to show.
-
-## Local Postgres (Milestone 3)
-
-`PostgresDataSource`'s tests need a real Postgres to run against. Start one with:
+Postgres adapter tests need a running database. They skip when none is reachable.
 
 ```bash
 docker compose up -d
+export SENTINEL_TEST_POSTGRES_DSN=postgresql://sentinel:sentinel@localhost:5432/sentinel
+uv run pytest
 ```
 
-This brings up a `postgres:16-alpine` container on `localhost:5432` (db/user/password all
-`sentinel`) — the same credentials CI's own ephemeral Postgres service container uses, so
-`SENTINEL_TEST_POSTGRES_DSN=postgresql://sentinel:sentinel@localhost:5432/sentinel` works
-identically in both places. See `docker-compose.yml` and `.github/workflows/ci.yml`.
+To validate a Postgres table, set the dataset's `source_type: postgres` and `config_reference: postgresql://user:pass@host:5432/db?table=orders`.
+
+### Docker
+
+```bash
+docker build -t sentinel .
+docker run --rm sentinel           # runs the test suite in a clean environment
+```
+
+### Regenerating the threshold evaluation
+
+```bash
+uv run python -m experiments.threshold_intelligence.runner
+```
+
+This rewrites [`docs/experiments/threshold-strategy-evaluation.md`](docs/experiments/threshold-strategy-evaluation.md). The output is seeded and deterministic, and `tests/unit/experiments/test_runner.py` pins its conclusions.
+
+### Configuration
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `SENTINEL_DB_PATH` | `sentinel.duckdb` | History store |
+| `SENTINEL_DATASETS_DIR` | `datasets` | Dataset YAML directory |
+| `SENTINEL_POLICIES_DIR` | `policies` | Policy YAML directory |
+| `SENTINEL_TEST_POSTGRES_DSN` | unset | Postgres used by the parity tests |
+
+---
+
+## Known limitations
+
+- **Adaptive thresholds need a warm-up.** A new rule configured directly with an adaptive strategy fails the run with `InsufficientHistoryError` until it has history. Start the rule on `static` and switch once enough runs exist; history is keyed by rule name, so it carries over. See [Thresholds: cold start](docs/components/thresholds.md#cold-start).
+- **One writer per history store.** DuckDB allows one process per database file. Do not run concurrent `validate` processes against the same `SENTINEL_DB_PATH`, and close the dashboard before validating against the store it has open.
+- **Execution errors abort the whole run.** If one rule cannot execute, nothing from that run is persisted.
+- **No built-in WARN.** The built-in strategies return PASS or FAIL only.
+- **Policies are versioned by hand** through the optional `version:` field.
+- **Renaming a rule resets its history.**
+- **Credentials in YAML.** Postgres connection URLs live in plain dataset YAML.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

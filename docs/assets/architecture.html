@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sentinel Architecture Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: toolbar, then a full-width pan/zoom canvas, then a details panel for the clicked component. */
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --ink: #1c2330;
+  --muted: #5d6778;
+  --line: #4a5568;
+  --accent: #2f5bd3;
+  --z-config: #fbf3e2;
+  --z-config-edge: #d9b56a;
+  --z-pipe: #eef0f4;
+  --z-pipe-edge: #b4bccb;
+  --z-core: #e8eefc;
+  --z-core-edge: #93a9e6;
+  --z-store: #e6f4ee;
+  --z-store-edge: #82c2a3;
+  --node: #ffffff;
+  --node-edge: #9aa5b8;
+  --warn: #b7791f;
+  --font-ui: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161d; --surface: #1a2029; --ink: #e6e9ef; --muted: #9aa4b5; --line: #a7b1c2; --accent: #7fa0ff;
+    --z-config: #2a2418; --z-config-edge: #8a6d33; --z-pipe: #1d222b; --z-pipe-edge: #4a5466;
+    --z-core: #19223a; --z-core-edge: #3f5596; --z-store: #16261f; --z-store-edge: #3c7a5c;
+    --node: #212833; --node-edge: #56617a; --warn: #e0a64a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161d; --surface: #1a2029; --ink: #e6e9ef; --muted: #9aa4b5; --line: #a7b1c2; --accent: #7fa0ff;
+  --z-config: #2a2418; --z-config-edge: #8a6d33; --z-pipe: #1d222b; --z-pipe-edge: #4a5466;
+  --z-core: #19223a; --z-core-edge: #3f5596; --z-store: #16261f; --z-store-edge: #3c7a5c;
+  --node: #212833; --node-edge: #56617a; --warn: #e0a64a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1400px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 40px; display: flex; flex-direction: column; gap: 14px; }
+header h1 { margin: 0; font-size: 1.5rem; text-wrap: balance; }
+header p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.toolbar button { font: inherit; font-size: 14px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--node-edge); background: var(--surface); color: var(--ink); cursor: pointer; }
+.toolbar button:hover { border-color: var(--accent); }
+.toolbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.zoomval { font-family: var(--font-code); font-size: 13px; color: var(--muted); min-width: 4.5ch; font-variant-numeric: tabular-nums; }
+.hint { color: var(--muted); font-size: 13px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); margin-left: auto; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 26px; height: 0; border-top: 2px solid var(--line); display: inline-block; }
+.sw.dash { border-top-style: dashed; }
+.sw.box { width: 14px; height: 14px; border: 2px dashed var(--warn); border-radius: 3px; }
+.canvas { position: relative; background: var(--surface); border: 1px solid var(--node-edge); border-radius: 10px; height: min(78vh, 860px); min-height: 420px; overflow: hidden; touch-action: none; cursor: grab; }
+.canvas.dragging { cursor: grabbing; }
+svg { width: 100%; height: 100%; display: block; user-select: none; }
+.zone { stroke-width: 1.5; }
+.zlabel { font: 700 15px var(--font-ui); letter-spacing: 0.08em; text-transform: uppercase; fill: var(--muted); }
+.node rect, .node path.cyl { fill: var(--node); stroke: var(--node-edge); stroke-width: 1.5; }
+.node { cursor: pointer; }
+.node:hover rect, .node:hover path.cyl, .node.sel rect, .node.sel path.cyl { stroke: var(--accent); stroke-width: 2.5; }
+.node:focus-visible { outline: none; }
+.node:focus-visible rect { stroke: var(--accent); stroke-width: 3; }
+.node.key rect { stroke: var(--accent); stroke-width: 2.5; }
+.node.partial rect { stroke: var(--warn); stroke-dasharray: 6 4; stroke-width: 2; }
+.ntitle { font: 600 16px var(--font-ui); fill: var(--ink); }
+.nsub { font: 400 12.5px var(--font-code); fill: var(--muted); }
+.badge { font: 700 11px var(--font-ui); fill: var(--warn); letter-spacing: 0.06em; }
+.edge { fill: none; stroke: var(--line); stroke-width: 1.8; }
+.edge.dash { stroke-dasharray: 7 5; }
+.elabel { font: 500 13px var(--font-ui); fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+.step { font: 700 12px var(--font-code); fill: var(--accent); paint-order: stroke; stroke: var(--surface); stroke-width: 5px; }
+.arrowhead { fill: var(--line); }
+.details { background: var(--surface); border: 1px solid var(--node-edge); border-radius: 10px; padding: 16px 18px; display: grid; gap: 6px; }
+.details h2 { margin: 0; font-size: 1.15rem; }
+.details .status { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.details .status.built { color: var(--accent); }
+.details .status.partial { color: var(--warn); }
+.details .status.ext { color: var(--muted); }
+.details p { margin: 0; max-width: 80ch; }
+.details code { font-family: var(--font-code); font-size: 13px; background: var(--bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.details ul { margin: 4px 0 0; padding-left: 20px; }
+@media (prefers-reduced-motion: no-preference) { .node rect, .node path.cyl { transition: stroke .12s; } }
+@media (max-width: 700px) { .legend { margin-left: 0; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Sentinel: high-level architecture</h1>
+    <p>What happens when a pipeline runs <code style="font-family:var(--font-code)">sentinel validate orders</code>. Scroll or pinch to zoom, drag to pan, and click any box to see its files and role.</p>
+  </header>
+
+  <div class="toolbar" role="toolbar" aria-label="Zoom controls">
+    <button id="zin" type="button" aria-label="Zoom in">+ Zoom in</button>
+    <button id="zout" type="button" aria-label="Zoom out">− Zoom out</button>
+    <button id="zfit" type="button">Fit to screen</button>
+    <span class="zoomval" id="zval">100%</span>
+    <div class="legend">
+      <span><i class="sw"></i>call / data flow</span>
+      <span><i class="sw dash"></i>reads history</span>
+      
+    </div>
+  </div>
+
+  <div class="canvas" id="canvas">
+    <svg id="svg" viewBox="0 0 1400 830" aria-label="Sentinel architecture diagram">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path class="arrowhead" d="M0,0 L10,5 L0,10 z"/>
+        </marker>
+      </defs>
+      <g id="world">
+        <!-- Zones -->
+        <rect class="zone" x="30" y="40" width="280" height="260" rx="14" fill="var(--z-config)" stroke="var(--z-config-edge)"/>
+        <text class="zlabel" x="50" y="70">Definitions (YAML)</text>
+        <rect class="zone" x="30" y="340" width="280" height="430" rx="14" fill="var(--z-pipe)" stroke="var(--z-pipe-edge)"/>
+        <text class="zlabel" x="50" y="370">Your pipeline</text>
+        <rect class="zone" x="360" y="40" width="570" height="730" rx="14" fill="var(--z-core)" stroke="var(--z-core-edge)"/>
+        <text class="zlabel" x="380" y="70">Validation core (no database imports)</text>
+        <rect class="zone" x="980" y="40" width="390" height="730" rx="14" fill="var(--z-store)" stroke="var(--z-store-edge)"/>
+        <text class="zlabel" x="1000" y="70">Data, storage &amp; read side</text>
+
+        <!-- Edges (drawn first so nodes sit on top) -->
+        <path class="edge" marker-end="url(#ah)" d="M280,138 H330 V172 H388"/>
+        <path class="edge" marker-end="url(#ah)" d="M280,228 H330 V196 H388"/>
+        <path class="edge" marker-end="url(#ah)" d="M170,466 V538"/>
+        <path class="edge" marker-end="url(#ah)" d="M170,612 V688"/>
+        <text class="elabel" x="182" y="656">exit code 0 / 2</text>
+        <path class="edge" marker-end="url(#ah)" d="M280,556 H342 V218 H388"/>
+        <path class="edge" marker-start="url(#ah)" marker-end="url(#ah)" d="M282,584 H372 V478 H388"/>
+        <text class="elabel" x="376" y="600">run() ⇄ ValidationRun</text>
+        <path class="edge" marker-end="url(#ah)" d="M500,232 V428"/>
+        <text class="elabel" x="510" y="335">Dataset + Policy</text>
+
+        <path class="edge" marker-end="url(#ah)" d="M612,446 H640 V142 H668"/>
+        <text class="step" x="646" y="300">1</text>
+        <text class="elabel" x="672" y="100">compute Metric</text>
+        <path class="edge" marker-end="url(#ah)" d="M780,176 V228"/>
+        <text class="elabel" x="790" y="207">queries</text>
+        <path class="edge" marker-end="url(#ah)" d="M892,262 H960 V150 H1038"/>
+        <text class="elabel" x="905" y="245">SQL</text>
+
+        <path class="edge" marker-end="url(#ah)" d="M612,466 H668"/>
+        <text class="step" x="632" y="486">2</text>
+        <text class="elabel" x="672" y="420">judge Metric → PASS / FAIL</text>
+
+        <path class="edge" marker-end="url(#ah)" d="M612,494 H640 V592 H668"/>
+        <text class="step" x="646" y="550">3</text>
+        <text class="elabel" x="672" y="548">only if not PASS</text>
+
+        <path class="edge dash" marker-end="url(#ah)" d="M892,450 H940 V412 H1038"/>
+        <text class="elabel" x="946" y="402">past Metrics</text>
+        <path class="edge dash" marker-end="url(#ah)" d="M892,592 H955 V458 H1038"/>
+        <text class="elabel" x="900" y="620">past failures</text>
+
+        <path class="edge" marker-end="url(#ah)" d="M50,596 H20 V800 H968 V476 H1038"/>
+        <text class="elabel" x="420" y="794">persist_validation_run(): runs + events + incidents in one transaction</text>
+
+        <path class="edge" marker-end="url(#ah)" d="M1110,486 V568"/>
+        <path class="edge" marker-end="url(#ah)" d="M1295,486 V568"/>
+        <path class="edge" marker-end="url(#ah)" d="M1110,626 V678"/>
+      </g>
+      <g id="nodes"></g>
+    </svg>
+  </div>
+
+  <section class="details" id="details" aria-live="polite"></section>
+</div>
+
+<script>
+(function () {
+  // Node geometry and the onboarding notes shown when a node is clicked.
+  // Status: built (a Sentinel component), ext (outside Sentinel).
+  const NODES = [
+    { id: "policy", x: 50, y: 110, w: 230, h: 56, t: "Policy", s: "policies/orders.yaml", st: "built",
+      d: "Declares what 'good data' means for one dataset: a list of rules, each with a type, optional column, threshold strategy, severity and blocking flag.",
+      f: ["policies/orders.yaml (5 rules)", "src/sentinel/policy_loader/loader.py → Policy", "src/sentinel/domain/policy.py (Policy, RuleConfig, ThresholdConfig)"] },
+    { id: "dataset", x: 50, y: 200, w: 230, h: 56, t: "Dataset", s: "datasets/orders.yaml", st: "built",
+      d: "Describes where the data lives and how important it is: source_type (duckdb / postgres), config_reference (file path or connection URL), owner and criticality.",
+      f: ["datasets/orders.yaml", "src/sentinel/dataset_loader/loader.py", "src/sentinel/domain/dataset.py"] },
+    { id: "load", x: 50, y: 410, w: 230, h: 56, t: "Load job", s: "your ETL / ELT step", st: "ext",
+      d: "Your own pipeline code. It lands data, then calls Sentinel as the next step. Not part of this repository.", f: [] },
+    { id: "cli", x: 50, y: 540, w: 232, h: 72, t: "sentinel validate", s: "cli/main.py", st: "built", key: true,
+      d: "The entry point. It builds the app context and DuckDB connection, resolves the Dataset and Policy, builds the DataSource, runs the orchestrator, persists the result, prints a summary and exits with a blocking-aware code (0 = pass, 1 = warn, 2 = blocking failure).",
+      f: ["src/sentinel/cli/main.py (validate, _exit_code, _print_summary)", "src/sentinel/cli/bootstrap.py (build_context)", "src/sentinel/registration.py (register_all)"] },
+    { id: "down", x: 50, y: 690, w: 230, h: 56, t: "Downstream tasks", s: "dashboards, models, exports", st: "ext",
+      d: "Your pipeline's scheduler (Airflow, Dagster, cron) reads the exit code. Non-zero stops downstream tasks. Sentinel itself does not schedule, alert or quarantine.", f: [] },
+
+    { id: "resolve", x: 390, y: 150, w: 220, h: 82, t: "Resolution + loaders", s: "cli/resolution.py", st: "built",
+      d: "Finds datasets/<name>.yaml and policies/<name>.yaml by naming convention and parses them into validated domain objects. Bad YAML fails here, before any data is touched.",
+      f: ["src/sentinel/cli/resolution.py (resolve_dataset, resolve_policy)", "src/sentinel/config_loading.py", "src/sentinel/policy_loader/, dataset_loader/"] },
+    { id: "orch", x: 390, y: 430, w: 222, h: 84, t: "ValidationOrchestrator", s: "orchestration/", st: "built", key: true,
+      d: "The heart of the system. For each rule it runs: compute Metric → fetch history → judge with a strategy → build QualityEvent → prioritize if not PASS. Returns one immutable ValidationRun. It never imports DuckDB; history comes in through injected interfaces.",
+      f: ["src/sentinel/orchestration/orchestrator.py (ValidationOrchestrator.run, _worst_status)", "src/sentinel/domain/events.py (QualityEvent, ValidationRun)"] },
+    { id: "rules", x: 670, y: 110, w: 222, h: 66, t: "Rule Engine", s: "5 rules via registry", st: "built",
+      d: "Each rule type (row_count, null_rate, uniqueness, freshness, schema) implements the Rule protocol and is looked up by its type string. A rule only measures and returns a Metric. It never decides pass or fail.",
+      f: ["src/sentinel/rules/base.py (Rule protocol)", "src/sentinel/rules/registry.py (get_rule, register_rule)", "src/sentinel/rules/row_count.py, null_rate.py, uniqueness.py, freshness.py, schema_validation.py"] },
+    { id: "ds", x: 670, y: 230, w: 222, h: 66, t: "DataSource adapters", s: "DuckDB · Postgres", st: "built",
+      d: "Hide where the data lives. Rules ask a DataSource questions (row count, nulls, columns and types) without knowing whether it is a CSV via DuckDB or a Postgres table.",
+      f: ["src/sentinel/datasources/base.py (DataSource protocol, columns())", "src/sentinel/datasources/duckdb_source.py", "src/sentinel/datasources/postgres_source.py", "src/sentinel/datasources/registry.py"] },
+    { id: "th", x: 670, y: 432, w: 222, h: 66, t: "Threshold Strategies", s: "static + 4 adaptive", st: "built",
+      d: "Judge a Metric against the policy and, for adaptive strategies, against past Metrics. Output is a ThresholdResult (status, expected text, optional JSON details). Static never uses history. The built-in strategies return PASS or FAIL.",
+      f: ["src/sentinel/thresholds/base.py, registry.py", "static.py, percentage_deviation.py, statistical.py, median_mad.py, seasonal.py", "src/sentinel/thresholds/history.py (HistoricalMetricsSource, NullHistorySource)"] },
+    { id: "prio", x: 670, y: 560, w: 222, h: 66, t: "Incident Prioritizer", s: "prioritization/", st: "built",
+      d: "Turns a non-PASS QualityEvent into an Incident (INFO → CRITICAL) with a deterministic weighted score and human-readable reasons: severity, dataset criticality, deviation size, failure frequency and confidence.",
+      f: ["src/sentinel/prioritization/prioritizer.py (IncidentPrioritizer)", "scoring.py, config.py, deviation.py, frequency.py, confidence.py", "src/sentinel/domain/incident.py"] },
+
+    { id: "data", x: 1040, y: 100, w: 250, h: 92, t: "Source data", s: "data/orders.csv · Postgres", st: "ext", cyl: true,
+      d: "The data being validated. Sentinel only reads it through a DataSource and never copies or modifies it.", f: ["data/orders.csv (12-row sample)"] },
+    { id: "db", x: 1040, y: 376, w: 250, h: 110, t: "sentinel.duckdb", s: "history store (5 tables)", st: "built", cyl: true,
+      d: "Sentinel's own history store. Written once per run, then read by adaptive thresholds, the prioritizer, the history command and the dashboard.",
+      f: ["src/sentinel/persistence/schema.py, engine.py", "writer.py (persist_validation_run), mapping.py", "history.py, failure_history.py (read sources used during a run)", "reader.py (list_recent_runs)"] },
+    { id: "obs", x: 1000, y: 570, w: 220, h: 56, t: "ObservabilityQueryService", s: "observability/", small: true, st: "built",
+      d: "Read-only query layer: Dataset Health, Quality History, Metric Trends, Failed Rules, Incident History and Recurring Failures. It never re-implements validation logic.",
+      f: ["src/sentinel/observability/queries.py", "views.py (read models)", "health.py (pure derivation, no DuckDB import)"] },
+    { id: "hist", x: 1238, y: 570, w: 115, h: 56, t: "history", s: "CLI cmd", st: "built",
+      d: "`sentinel history orders --limit N` prints recent runs: timestamp, status and failed rules.", f: ["src/sentinel/cli/main.py (history)", "src/sentinel/persistence/reader.py"] },
+    { id: "dash", x: 1000, y: 680, w: 220, h: 60, t: "Streamlit dashboard", s: "dashboard/app.py", st: "built",
+      d: "A single-file Streamlit app that reads only through ObservabilityQueryService. Run it with `uv sync --group dashboard && uv run streamlit run dashboard/app.py`.",
+      f: ["dashboard/app.py"] }
+  ];
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  const layer = document.getElementById("nodes");
+  const els = {};
+
+  function mk(tag, attrs, parent) {
+    const e = document.createElementNS(svgNS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  NODES.forEach(n => {
+    const g = mk("g", { class: "node" + (n.key ? " key" : ""), tabindex: "0", role: "button", "aria-label": n.t }, layer);
+    if (n.cyl) {
+      const ry = 14, x = n.x, y = n.y, w = n.w, h = n.h;
+      mk("path", { class: "cyl", d: `M${x},${y + ry} a${w / 2},${ry} 0 0,0 ${w},0 a${w / 2},${ry} 0 0,0 ${-w},0 V${y + h - ry} a${w / 2},${ry} 0 0,0 ${w},0 V${y + ry}` }, g);
+      mk("text", { class: "ntitle", x: x + w / 2, y: y + h / 2 + 8, "text-anchor": "middle" }, g).textContent = n.t;
+      mk("text", { class: "nsub", x: x + w / 2, y: y + h / 2 + 28, "text-anchor": "middle" }, g).textContent = n.s;
+    } else {
+      mk("rect", { x: n.x, y: n.y, width: n.w, height: n.h, rx: 8 }, g);
+      const cy = n.y + n.h / 2;
+      mk("text", { class: "ntitle", x: n.x + n.w / 2, y: cy - 3, "text-anchor": "middle", style: n.small ? "font-size:14px" : "" }, g).textContent = n.t;
+      mk("text", { class: "nsub", x: n.x + n.w / 2, y: cy + 17, "text-anchor": "middle" }, g).textContent = n.s;
+      if (n.partial) mk("text", { class: "badge", x: n.x + n.w - 8, y: n.y - 6, "text-anchor": "end" }, g).textContent = "UNTESTED";
+    }
+    g.addEventListener("click", ev => { if (!moved) select(n.id); });
+    g.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); select(n.id); } });
+    els[n.id] = g;
+  });
+
+  const details = document.getElementById("details");
+  const STATUS = { built: ["built", "Sentinel component"], partial: ["partial", "Built"], ext: ["ext", "Outside Sentinel"] };
+  function esc(s) { return s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+  function fmt(s) { return esc(s).replace(/`([^`]+)`/g, "<code>$1</code>"); }
+  function select(id) {
+    const n = NODES.find(x => x.id === id);
+    Object.values(els).forEach(e => e.classList.remove("sel"));
+    els[id].classList.add("sel");
+    const [cls, label] = STATUS[n.st];
+    details.innerHTML =
+      `<span class="status ${cls}">${label}</span><h2>${esc(n.t)}</h2><p>${fmt(n.d)}</p>` +
+      (n.f.length ? `<ul>${n.f.map(f => `<li><code>${esc(f)}</code></li>`).join("")}</ul>` : "");
+  }
+  select("orch");
+
+  // ---- Pan & zoom by manipulating the viewBox ----
+  const svg = document.getElementById("svg");
+  const canvas = document.getElementById("canvas");
+  const zval = document.getElementById("zval");
+  const BASE = { x: 0, y: 0, w: 1400, h: 830 };
+  let vb = { ...BASE };
+  let fitW = BASE.w;
+
+  function apply() {
+    svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+    zval.textContent = Math.round((fitW / vb.w) * 100) + "%";
+  }
+  function fit() {
+    const r = canvas.getBoundingClientRect();
+    const aspect = r.width / r.height;
+    let w = BASE.w, h = BASE.h;
+    if (w / h > aspect) h = w / aspect; else w = h * aspect;
+    vb = { x: BASE.x - (w - BASE.w) / 2, y: BASE.y - (h - BASE.h) / 2, w, h };
+    fitW = w;
+    apply();
+  }
+  function toSvg(cx, cy) {
+    const r = canvas.getBoundingClientRect();
+    return { x: vb.x + ((cx - r.left) / r.width) * vb.w, y: vb.y + ((cy - r.top) / r.height) * vb.h };
+  }
+  function zoomAt(factor, cx, cy) {
+    const newW = Math.min(Math.max(vb.w / factor, fitW / 8), fitW * 1.5);
+    const f = vb.w / newW;
+    const p = toSvg(cx, cy);
+    vb = { x: p.x - (p.x - vb.x) / f, y: p.y - (p.y - vb.y) / f, w: newW, h: vb.h / f };
+    apply();
+  }
+  function centerZoom(factor) {
+    const r = canvas.getBoundingClientRect();
+    zoomAt(factor, r.left + r.width / 2, r.top + r.height / 2);
+  }
+
+  canvas.addEventListener("wheel", e => { e.preventDefault(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY); }, { passive: false });
+
+  const pts = new Map();
+  let last = null, pinch = null, moved = false;
+  canvas.addEventListener("pointerdown", e => {
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    moved = false;
+    if (pts.size === 1) { last = { x: e.clientX, y: e.clientY }; }
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); }
+  });
+  canvas.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2 && pinch) {
+      const [a, b] = [...pts.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      zoomAt(d / pinch, (a.x + b.x) / 2, (a.y + b.y) / 2);
+      pinch = d; moved = true;
+    } else if (pts.size === 1 && last) {
+      const dx = e.clientX - last.x, dy = e.clientY - last.y;
+      if (Math.abs(dx) + Math.abs(dy) > 3) { moved = true; canvas.classList.add("dragging"); if (!canvas.hasPointerCapture(e.pointerId)) canvas.setPointerCapture(e.pointerId); }
+      if (moved) {
+        const r = canvas.getBoundingClientRect();
+        vb.x -= dx * (vb.w / r.width); vb.y -= dy * (vb.h / r.height);
+        apply();
+        last = { x: e.clientX, y: e.clientY };
+      }
+    }
+  });
+  function up(e) {
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinch = null;
+    if (pts.size === 1) { const [p] = [...pts.values()]; last = { ...p }; } else last = null;
+    canvas.classList.remove("dragging");
+    setTimeout(() => { if (pts.size === 0) moved = false; }, 0);
+  }
+  canvas.addEventListener("pointerup", up);
+  canvas.addEventListener("pointercancel", up);
+
+  document.getElementById("zin").onclick = () => centerZoom(1.3);
+  document.getElementById("zout").onclick = () => centerZoom(1 / 1.3);
+  document.getElementById("zfit").onclick = fit;
+  window.addEventListener("resize", fit);
+  fit();
+})();
+</script>
+
+</body>
+</html>

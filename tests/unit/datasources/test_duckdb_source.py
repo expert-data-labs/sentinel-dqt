@@ -9,7 +9,6 @@ in test_registry.py and test_registration.py.
 
 from __future__ import annotations
 
-from datetime import UTC
 from pathlib import Path
 
 import pytest

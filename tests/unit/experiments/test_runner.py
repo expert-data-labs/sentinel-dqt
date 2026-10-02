@@ -1,11 +1,11 @@
-"""Pins the documented outcomes of docs/experiments/milestone-4-results.md
+"""Pins the documented outcomes of docs/experiments/threshold-strategy-evaluation.md
 as real assertions -- the "reproducible evidence" the milestone brief
 asks for is only actually reproducible if a regression here fails a test,
 not just a stale-looking number in a Markdown file nobody re-generates.
 
 Every expected count below was derived by running this exact code (not
 guessed, not hand-computed from the scenario parameters) -- see
-docs/experiments/milestone-4-results.md for the narrative explanation of
+docs/experiments/threshold-strategy-evaluation.md for the narrative explanation of
 *why* each number comes out the way it does. If `scenarios.py`'s seed,
 noise ranges, or point counts ever change, these numbers need
 regenerating (`python -m experiments.threshold_intelligence.runner`) and

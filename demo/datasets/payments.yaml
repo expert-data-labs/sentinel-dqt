@@ -1,0 +1,11 @@
+# Phase 3 demo dataset -- isolated from the real datasets/ directory.
+# Criticality CRITICAL so an incident can actually reach CRITICAL priority
+# (with the default WARNING severity and no CRITICAL datasets, the real
+# configs cap out at 69.9 -- see the Phase 2 walkthrough).
+id: payments
+name: payments
+source_type: duckdb
+environment: local
+owner: payments-team
+criticality: critical
+config_reference: demo/data/payments.csv

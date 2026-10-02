@@ -42,6 +42,6 @@ def register_all() -> None:
         median_mad,
         percentage_deviation,
         seasonal,
-        statistical,
         static,
+        statistical,
     )

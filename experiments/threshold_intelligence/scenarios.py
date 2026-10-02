@@ -1,5 +1,5 @@
 """Deterministic synthetic datasets for Milestone 4's threshold-strategy
-comparison (docs/architecture/0005-milestone-4-design.md Part 7).
+comparison (docs/components/thresholds.md).
 
 Every scenario returns a chronological ``list[ScenarioPoint]`` for a
 single rule (``row_count``, standing in for any Metric a Rule produces
@@ -13,7 +13,7 @@ against a known-correct answer.
 Randomness (the small day-to-day jitter in Scenarios A/B/C) uses
 ``random.Random(_SEED)`` -- a fixed seed, so every run of this module
 produces byte-identical output, which is what makes the results in
-docs/experiments/milestone-4-results.md and the pinning tests in
+docs/experiments/threshold-strategy-evaluation.md and the pinning tests in
 tests/unit/experiments/test_runner.py reproducible rather than "usually
 about right." Scenario D uses no randomness at all -- every value is the
 exact figure from the milestone brief's own worked example.
@@ -120,7 +120,7 @@ def scenario_d_historical_outlier() -> list[ScenarioPoint]:
     history, once as a repeat of the same-sized anomaly evaluated *after*
     the first has already contaminated the history a Mean/StdDev strategy
     would compute. That repeat is the real point of this scenario (see
-    docs/experiments/milestone-4-results.md): Mean/StdDev catches the
+    docs/experiments/threshold-strategy-evaluation.md): Mean/StdDev catches the
     first occurrence (history is still clean) but misses the second (its
     own bounds have since been dragged wide by the first), while
     Median/MAD catches both.

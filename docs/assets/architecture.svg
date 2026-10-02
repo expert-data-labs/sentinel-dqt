@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 860" width="1400" height="860" role="img" aria-label="Sentinel architecture: definitions, pipeline, validation core, storage and read side" xmlns:c2pa="http://c2pa.org/manifest"><metadata><c2pa:manifest>AAAWgmp1bWIAAAAeanVtZGMycGEAEQAQgAAAqgA4m3EDYzJwYQAAABZcanVtYgAAAEdqdW1kYzJtYQARABCAAACqADibcQN1cm46YzJwYTo2N2FlYWM4Yi0wM2M0LTQ4OWUtYjJhNS1mODYwYjI1MzQxOWIAAAADl2p1bWIAAAApanVtZGMyYXMAEQAQgAAAqgA4m3EDYzJwYS5hc3NlcnRpb25zAAAAALxqdW1iAAAARGp1bWRjYm9yABEAEIAAAKoAOJtxE2MycGEuaW5ncmVkaWVudC52MwAAAAAYYzJzaJfr3BXt3ktcZ58KTBPWnwIAAABwY2JvcqNpZGM6Zm9ybWF0bWltYWdlL3N2Zyt4bWxqaW5zdGFuY2VJRHgseG1wOmlpZDpkOGE0YzkzMC04MTFlLTQ3ZjQtYTgwNy1mNDViYzhmYTRlMmRscmVsYXRpb25zaGlwaHBhcmVudE9mAAAB4mp1bWIAAABBanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5hY3Rpb25zLnYyAAAAABhjMnNo5fv6t8P+7hkONf8LD7h5ogAAAZljYm9yomdhY3Rpb25zgqJmYWN0aW9ua2MycGEub3BlbmVkanBhcmFtZXRlcnOha2luZ3JlZGllbnRzgaJjdXJseC1zZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmluZ3JlZGllbnQudjNkaGFzaFgg6oRDvX2WO0o2nJ7+cDNd2NdbDPdcgG/pjOruEIFS0sOkZmFjdGlvbngdY29tLmFudGhyb3BpYy5jbGF1ZGUucHJvdmlkZWRqcGFyYW1ldGVyc6F4H2NvbS5hbnRocm9waWMub3JpZ2luLWNvbmZpZGVuY2VndW5rbm93bmtkZXNjcmlwdGlvbnhmQ2xhdWRlIHByb3ZpZGVkIHRoaXMgZmlsZSBhdCB0aGUgcmVxdWVzdCBvZiBhIHVzZXIgYW5kIG1heSBoYXZlIGNyZWF0ZWQgb3IgbW9kaWZpZWQgdGhlIGZpbGUgY29udGVudHMubXNvZnR3YXJlQWdlbnShZG5hbWVmQ2xhdWRlcmFsbEFjdGlvbnNJbmNsdWRlZPUAAADIanVtYgAAAEBqdW1kY2JvcgARABCAAACqADibcRNjMnBhLmhhc2guZGF0YQAAAAAYYzJzaH7IXzaTk39QgBAGVyg/tpAAAACAY2JvcqVjYWxnZnNoYTI1NmNwYWRMAAAAAAAAAAAAAAAAZGhhc2hYIDJMPtkiQCcuN6dOvqdLtPKYgUxS0tZnwqiEi4q7v66+ZG5hbWVuanVtYmYgbWFuaWZlc3RqZXhjbHVzaW9uc4GiZXN0YXJ0GQEFZmxlbmd0aBkeBAAAAj5qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAACD2Nib3KlY2FsZ2ZzaGEyNTZpc2lnbmF0dXJleE1zZWxmI2p1bWJmPS9jMnBhL3VybjpjMnBhOjY3YWVhYzhiLTAzYzQtNDg5ZS1iMmE1LWY4NjBiMjUzNDE5Yi9jMnBhLnNpZ25hdHVyZWppbnN0YW5jZUlEeCx4bXA6aWlkOjRhYzYzZWFiLWJmYzQtNDI5NC1hOWRhLTNkOWUyYTYwMjA4YnJjcmVhdGVkX2Fzc2VydGlvbnODomN1cmx4LXNlbGYjanVtYmY9YzJwYS5hc3NlcnRpb25zL2MycGEuaW5ncmVkaWVudC52M2RoYXNoWCDqhEO9fZY7Sjacnv5wM13Y11sM91yAb+mM6u4QgVLSw6JjdXJseCpzZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmFjdGlvbnMudjJkaGFzaFggqSl25eiZwrHAn3+SoTrT9akMHtJApAP7Ja39ucQX7J+iY3VybHgpc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5oYXNoLmRhdGFkaGFzaFggEGvxMgRyBRrhdYVLfxX0qDBezmoERxCZZJY6u2CxuBB0Y2xhaW1fZ2VuZXJhdG9yX2luZm+jZG5hbWVvQW50aHJvcGljIEZpbGVzZ3ZlcnNpb25lMS4wLjBrc3BlY1ZlcnNpb25lMi40LjAAABA4anVtYgAAAChqdW1kYzJjcwARABCAAACqADibcQNjMnBhLnNpZ25hdHVyZQAAABAIY2JvctKEWQISogEmGCFZAgowggIGMIIBjaADAgECAhRA5aAK7sI50L64g/oGQgU9Z1UTADAKBggqhkjOPQQDAzBJMRcwFQYDVQQKEw5BbnRocm9waWMsIFBCQzEuMCwGA1UEAxMlQW50aHJvcGljIENvbnRlbnQgQ3JlZGVudGlhbHMgUm9vdCBDQTAeFw0yNjA4MDcxODQzNTZaFw0yODA4MDYxOTQzNTZaMEQxFzAVBgNVBAoTDkFudGhyb3BpYywgUEJDMSkwJwYDVQQDEyBBbnRocm9waWMgQ2xhdWRlIENvbnRlbnQgU2lnbmluZzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJh6CmvLUBgFFNU0vUKlOVtE6djd17L5SuwX0LemFisBM3dkd/3cyjxFA3Qo5S46fX0/ihY0VZ7mfb9KF703t5OjWDBWMA4GA1UdDwEB/wQEAwIHgDAVBgNVHSUEDjAMBgorBgEEAYPoXgIBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUzlHiBIFOZFsj+OPEz5o+nMHXXMIwCgYIKoZIzj0EAwMDZwAwZAIwMXMdFJ4BetLLVY7ORuE9noqbbAZOZn/aArXyTwFAZfKrPzxF2vPoJNf1+UCdg1XGAjBwX1zd9WGqYkqmL5SFqw1QySjr1zJfpJM9+1rdDwSPLMOPOjKuiXjoU/pUUeG9RwmhY3BhZFkNngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPZYQBozPhW5A8za+if++4M5+uTw/6fvYf07W6o9Zeeu3N/RuWYJ0ZngI48Dd/xPMFBCsAJNLwDkPGHrfYiFOpsM+34=</c2pa:manifest></metadata>
+<title>Sentinel architecture</title>
+<style>
+.bg{fill:#ffffff}
+.zl{font:700 15px system-ui,-apple-system,'Segoe UI',sans-serif;letter-spacing:.08em;fill:#5d6778}
+.z1{fill:#fbf3e2;stroke:#d9b56a}.z2{fill:#eef0f4;stroke:#b4bccb}.z3{fill:#e8eefc;stroke:#93a9e6}.z4{fill:#e6f4ee;stroke:#82c2a3}
+.zone{stroke-width:1.5}
+.n{fill:#ffffff;stroke:#9aa5b8;stroke-width:1.5}.n.key{stroke:#2f5bd3;stroke-width:2.5}.n.ext{stroke-dasharray:5 4}
+.t{font:600 16px system-ui,-apple-system,'Segoe UI',sans-serif;fill:#1c2330}.t.sm{font-size:14px}
+.s{font:400 12.5px ui-monospace,Menlo,Consolas,monospace;fill:#5d6778}
+.edge{fill:none;stroke:#4a5568;stroke-width:1.8}.edge.dash{stroke-dasharray:7 5}
+.ah{fill:#4a5568}
+.elabel{font:500 13px system-ui,-apple-system,'Segoe UI',sans-serif;fill:#1c2330;paint-order:stroke;stroke:#ffffff;stroke-width:5px;stroke-linejoin:round}
+.step{font:700 12px ui-monospace,Menlo,monospace;fill:#2f5bd3;paint-order:stroke;stroke:#ffffff;stroke-width:5px}
+.lg{font:400 13px system-ui,-apple-system,'Segoe UI',sans-serif;fill:#5d6778}
+@media (prefers-color-scheme: dark){
+.bg{fill:#0d1117}.zl{fill:#9aa4b5}
+.z1{fill:#2a2418;stroke:#8a6d33}.z2{fill:#1d222b;stroke:#4a5466}.z3{fill:#19223a;stroke:#3f5596}.z4{fill:#16261f;stroke:#3c7a5c}
+.n{fill:#212833;stroke:#56617a}.n.key{stroke:#7fa0ff}
+.t{fill:#e6e9ef}.s{fill:#9aa4b5}.edge{stroke:#a7b1c2}.ah{fill:#a7b1c2}
+.elabel{fill:#e6e9ef;stroke:#0d1117}.step{fill:#7fa0ff;stroke:#0d1117}.lg{fill:#9aa4b5}
+}
+</style>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect class="bg" x="0" y="0" width="1400" height="860"/>
+<rect class="zone z1" x="30" y="40" width="280" height="260" rx="14"/><text class="zl" x="50" y="70">DEFINITIONS (YAML)</text>
+<rect class="zone z2" x="30" y="340" width="280" height="430" rx="14"/><text class="zl" x="50" y="370">YOUR PIPELINE</text>
+<rect class="zone z3" x="360" y="40" width="570" height="730" rx="14"/><text class="zl" x="380" y="70">VALIDATION CORE (NO DATABASE IMPORTS)</text>
+<rect class="zone z4" x="980" y="40" width="390" height="730" rx="14"/><text class="zl" x="1000" y="70">DATA, STORAGE &amp; READ SIDE</text>
+
+<path class="edge" marker-end="url(#ah)" d="M280,138 H330 V172 H388"/>
+<path class="edge" marker-end="url(#ah)" d="M280,228 H330 V196 H388"/>
+<path class="edge" marker-end="url(#ah)" d="M170,466 V538"/>
+<path class="edge" marker-end="url(#ah)" d="M170,612 V688"/>
+<text class="elabel" x="182" y="656">exit code 0 / 1 / 2</text>
+<path class="edge" marker-end="url(#ah)" d="M280,556 H342 V218 H388"/>
+<path class="edge" marker-start="url(#ah)" marker-end="url(#ah)" d="M282,584 H372 V478 H388"/>
+<text class="elabel" x="376" y="600">run() ⇄ ValidationRun</text>
+<path class="edge" marker-end="url(#ah)" d="M500,232 V428"/>
+<text class="elabel" x="510" y="335">Dataset + Policy</text>
+<path class="edge" marker-end="url(#ah)" d="M612,446 H640 V142 H668"/>
+<text class="step" x="646" y="300">1</text>
+<text class="elabel" x="672" y="100">compute Metric</text>
+<path class="edge" marker-end="url(#ah)" d="M780,176 V228"/>
+<text class="elabel" x="790" y="207">aggregate queries</text>
+<path class="edge" marker-end="url(#ah)" d="M892,262 H960 V150 H1038"/>
+<text class="elabel" x="905" y="245">SQL</text>
+<path class="edge" marker-end="url(#ah)" d="M612,466 H668"/>
+<text class="step" x="632" y="486">2</text>
+<text class="elabel" x="672" y="420">judge Metric → PASS / FAIL</text>
+<path class="edge" marker-end="url(#ah)" d="M612,494 H640 V592 H668"/>
+<text class="step" x="646" y="550">3</text>
+<text class="elabel" x="672" y="548">only if not PASS</text>
+<path class="edge dash" marker-end="url(#ah)" d="M892,450 H940 V412 H1038"/>
+<text class="elabel" x="946" y="402">past Metrics</text>
+<path class="edge dash" marker-end="url(#ah)" d="M892,592 H955 V458 H1038"/>
+<text class="elabel" x="900" y="620">past failures</text>
+<path class="edge" marker-end="url(#ah)" d="M50,596 H20 V800 H968 V476 H1038"/>
+<text class="elabel" x="420" y="794">persist_validation_run(): one transaction per run</text>
+<path class="edge" marker-end="url(#ah)" d="M1110,486 V568"/>
+<path class="edge" marker-end="url(#ah)" d="M1295,486 V568"/>
+<path class="edge" marker-end="url(#ah)" d="M1110,626 V678"/>
+
+<rect class="n" x="50" y="110" width="230" height="56" rx="8"/>
+<text class="t" x="165.0" y="135.0" text-anchor="middle">Policy</text>
+<text class="s" x="165.0" y="155.0" text-anchor="middle">policies/&lt;name&gt;.yaml</text>
+<rect class="n" x="50" y="200" width="230" height="56" rx="8"/>
+<text class="t" x="165.0" y="225.0" text-anchor="middle">Dataset</text>
+<text class="s" x="165.0" y="245.0" text-anchor="middle">datasets/&lt;name&gt;.yaml</text>
+<rect class="n ext" x="50" y="410" width="230" height="56" rx="8"/>
+<text class="t" x="165.0" y="435.0" text-anchor="middle">Load job</text>
+<text class="s" x="165.0" y="455.0" text-anchor="middle">your ETL / ELT step</text>
+<rect class="n key" x="50" y="540" width="232" height="72" rx="8"/>
+<text class="t" x="166.0" y="573.0" text-anchor="middle">sentinel validate</text>
+<text class="s" x="166.0" y="593.0" text-anchor="middle">cli/main.py</text>
+<rect class="n ext" x="50" y="690" width="230" height="56" rx="8"/>
+<text class="t" x="165.0" y="715.0" text-anchor="middle">Downstream tasks</text>
+<text class="s" x="165.0" y="735.0" text-anchor="middle">dashboards, models, exports</text>
+<rect class="n" x="390" y="150" width="220" height="82" rx="8"/>
+<text class="t" x="500.0" y="188.0" text-anchor="middle">Resolution + loaders</text>
+<text class="s" x="500.0" y="208.0" text-anchor="middle">cli/resolution.py</text>
+<rect class="n key" x="390" y="430" width="222" height="84" rx="8"/>
+<text class="t" x="501.0" y="469.0" text-anchor="middle">ValidationOrchestrator</text>
+<text class="s" x="501.0" y="489.0" text-anchor="middle">orchestration/</text>
+<rect class="n" x="670" y="110" width="222" height="66" rx="8"/>
+<text class="t" x="781.0" y="140.0" text-anchor="middle">Rule Engine</text>
+<text class="s" x="781.0" y="160.0" text-anchor="middle">rules/ (5 rule types)</text>
+<rect class="n" x="670" y="230" width="222" height="66" rx="8"/>
+<text class="t" x="781.0" y="260.0" text-anchor="middle">DataSource adapters</text>
+<text class="s" x="781.0" y="280.0" text-anchor="middle">DuckDB · Postgres</text>
+<rect class="n" x="670" y="432" width="222" height="66" rx="8"/>
+<text class="t" x="781.0" y="462.0" text-anchor="middle">Threshold Strategies</text>
+<text class="s" x="781.0" y="482.0" text-anchor="middle">static + 4 adaptive</text>
+<rect class="n" x="670" y="560" width="222" height="66" rx="8"/>
+<text class="t" x="781.0" y="590.0" text-anchor="middle">Incident Prioritizer</text>
+<text class="s" x="781.0" y="610.0" text-anchor="middle">prioritization/</text>
+<path class="n ext" d="M1040,114 a125.0,14 0 0,0 250,0 a125.0,14 0 0,0 -250,0 V178 a125.0,14 0 0,0 250,0 V114"/>
+<text class="t" x="1165.0" y="154.0" text-anchor="middle">Source data</text>
+<text class="s" x="1165.0" y="174.0" text-anchor="middle">CSV via DuckDB · Postgres</text>
+<path class="n" d="M1040,390 a125.0,14 0 0,0 250,0 a125.0,14 0 0,0 -250,0 V472 a125.0,14 0 0,0 250,0 V390"/>
+<text class="t" x="1165.0" y="439.0" text-anchor="middle">sentinel.duckdb</text>
+<text class="s" x="1165.0" y="459.0" text-anchor="middle">history store (5 tables)</text>
+<rect class="n" x="1000" y="570" width="226" height="56" rx="8"/>
+<text class="t sm" x="1113.0" y="595.0" text-anchor="middle">ObservabilityQueryService</text>
+<text class="s" x="1113.0" y="615.0" text-anchor="middle">observability/</text>
+<rect class="n" x="1240" y="570" width="113" height="56" rx="8"/>
+<text class="t" x="1296.5" y="595.0" text-anchor="middle">history</text>
+<text class="s" x="1296.5" y="615.0" text-anchor="middle">CLI command</text>
+<rect class="n" x="1000" y="680" width="226" height="60" rx="8"/>
+<text class="t" x="1113.0" y="707.0" text-anchor="middle">Streamlit dashboard</text>
+<text class="s" x="1113.0" y="727.0" text-anchor="middle">dashboard/app.py</text>
+<line class="edge" x1="40" y1="838" x2="72" y2="838"/><text class="lg" x="80" y="842">call / data flow</text>
+<line class="edge dash" x1="210" y1="838" x2="242" y2="838"/><text class="lg" x="250" y="842">reads history during a run</text>
+<rect class="n ext" x="440" y="829" width="26" height="18" rx="4"/><text class="lg" x="474" y="842">outside Sentinel</text>
+<rect class="n key" x="610" y="829" width="26" height="18" rx="4"/><text class="lg" x="644" y="842">entry point / core coordinator</text>
+</svg>
