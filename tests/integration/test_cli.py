@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from sentinel.cli import bootstrap
 from sentinel.cli.main import app
 from sentinel.persistence import migrate
 from sentinel.persistence.engine import StoreConnection
@@ -70,7 +71,8 @@ def test_history_limit_option_caps_how_many_runs_are_shown() -> None:
 
 
 def test_validate_exits_3_when_the_store_is_not_migrated(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(migrate, "head_revision", lambda: "9999")
+    # Patch where bootstrap looks it up (it imports the name directly).
+    monkeypatch.setattr(bootstrap, "head_revision", lambda: "9999")
 
     result = runner.invoke(app, ["validate", "orders"])
 
