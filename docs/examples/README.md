@@ -4,6 +4,10 @@ Sentinel checks that a dataset looks the way you expect before anyone uses it: e
 
 This guide teaches Sentinel through ready-made scenarios. Each one is a small, realistic situation with data that has known problems planted in it, so you can predict what Sentinel will say and then check that it does.
 
+![A 20-second tour: validating two datasets from the CLI, then the dashboard's Overview, a dataset drill-down and a metric trend with its threshold band](../assets/sentinel-demo.gif)
+
+*Scenario 1 (`customers`), scenario 6 (`shipments`), then the dashboard from scenario 10, with the simulated dataset from scenario 9.*
+
 ---
 
 ## Five ideas you need first

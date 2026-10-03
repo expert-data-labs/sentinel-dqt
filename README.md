@@ -8,6 +8,10 @@ Pipelines call one command and act on its exit code:
 sentinel validate orders    # exit 0 = pass, 2 = a blocking rule failed
 ```
 
+![A 20-second tour: validating two datasets from the CLI, then the dashboard's Overview, a dataset drill-down and a metric trend with its threshold band](docs/assets/sentinel-demo.gif)
+
+*A 20-second tour: one dataset passes and one fails a critical rule, then the dashboard shows what's wrong, drills into it, and charts a metric against the range its adaptive threshold allowed. Every step is from the [examples](docs/examples/README.md).*
+
 ![Sentinel architecture](docs/assets/architecture.svg)
 
 ---
