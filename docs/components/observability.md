@@ -71,21 +71,20 @@ uv run streamlit run dashboard/app.py
 
 The dashboard reads `SENTINEL_DATABASE_URL` like the CLI. Run `sentinel validate` a few times first so there is history to show.
 
-| Section | Content |
-|---|---|
-| Sidebar | Time window (default: last 7 days) and an optional dataset drill-down |
-| Dataset Health | Every dataset's current health, latest validation time, highest priority and failed rule count. Not affected by the time window. |
-| Recent Incidents | Incidents in the window with priority, score and top reason |
-| Failed Rules | Rules with failures in the window, most frequent first, with their current priority |
-| Recurring Failures | First occurrence, recurring or persistent, per dataset and rule |
-| Metric Trends | One rule's metric over the window, drawn over the range its threshold allowed on each run (shaded), with failed runs marked in red. The band comes from each run's stored threshold details (`observability/bands.py`), so it shows what the strategy actually used that day. Requires a selected dataset. |
-| Quality History | Per-run summary for the selected dataset |
+Three pages, chosen in the navigation bar. Above every page sits the time window (24 hours, 7 days or 30 days; 7 by default). `main()` renders it before the selected page, so it keeps its value as you move between pages. There is no sidebar.
+
+| Page | Answers | Content |
+|---|---|---|
+| **Overview** | Is anything wrong right now? | Tiles: datasets, healthy, degraded and critical, then incidents and high or critical incidents in the window. A table of every dataset, worst health first, with highest priority, failed rules and latest validation. Selecting a row opens it on the Dataset page. Health is not affected by the time window. |
+| **Incidents** | What failed, and is it new? | A dataset filter and three tabs. *Recent incidents*: priority and score, filterable by priority. *Failing rules*: rules with failures in the window, most frequent first, with their current priority. *Recurring*: persistent, recurring or first occurrence per dataset and rule, persistent first. |
+| **Dataset** | What is happening to one dataset? | Tiles: health, latest run, failed rules and highest priority. Three tabs. *Metric trends*: one rule's value over the window, drawn over the range its threshold allowed on each run (shaded), with failed runs in red. The band comes from each run's stored threshold details (`observability/bands.py`), so it shows what the strategy actually used that day. *Runs*: each run's result and Run ID. *Incidents*: this dataset's incidents. |
 
 **Notes:**
 
 - Streamlit is an optional dependency group, so CLI-only users never install it.
 - The dashboard shares a small connection pool across all viewer sessions and borrows one connection per page render. It can run alongside any number of `sentinel validate` processes.
-- The dataset drill-down passes the dataset **name** as the id. Keep `id` and `name` identical in dataset YAML (the bundled examples do).
+- Pages pass the dataset **id** to the query service and display its name.
+- The app is one file (D24). Each page is a function; `main()` builds the shared context (query service, time window) and hands it to the page Streamlit's navigation selects.
 
 ---
 
@@ -94,7 +93,7 @@ The dashboard reads `SENTINEL_DATABASE_URL` like the CLI. Run `sentinel validate
 1. Add a frozen read model to `views.py`.
 2. If the view involves a judgement ("what counts as X"), add it as a pure function in `health.py` and unit-test it with plain inputs.
 3. Add one method to `ObservabilityQueryService` that fetches rows with a single query and calls the pure function.
-4. Render it in `dashboard/app.py`. Keep the dashboard free of logic.
+4. Render it on the page in `dashboard/app.py` that answers the same question (Overview, Incidents or Dataset). Keep the dashboard free of logic.
 5. Add query tests using the deterministic fixture in `tests/unit/observability/fixtures.py`.
 
 ## Tests

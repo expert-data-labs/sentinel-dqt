@@ -83,7 +83,7 @@ Every incident gets a 0–100 score from five weighted parts. Priority follows f
 
 Severity and criticality are both as low as they go, but the value is far outside its limit, and that alone is enough to lift the incident to WARNING. The full model is in [Incident Prioritization](../components/prioritization.md).
 
-The CLI and dashboard show only the first reason. To see all five, with the score parts and the threshold details, inspect the run (the latest one by default, or pass a Run ID):
+The CLI shows only the first reason, and the dashboard shows priority and score. To see all five reasons, with the score parts and the threshold details, inspect the run (the latest one by default, or pass a Run ID):
 
 ```bash
 uv run python demo/inspect_run.py a64b34bc-0a9a-4858-9533-2b848eb054b0

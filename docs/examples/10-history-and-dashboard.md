@@ -34,16 +34,13 @@ uv run streamlit run dashboard/app.py
 
 It opens at <http://localhost:8501>. The dashboard is read-only: it never changes the store, and it can stay open while validations run.
 
-**The sidebar** sets the time window (last 24 hours, 7 days or 30 days; 7 by default) and an optional dataset to drill into. The window applies to every view except Dataset Health.
+The navigation bar has three pages, each answering one question. The **time window** (last 24 hours, 7 days or 30 days; 7 by default) sits at the top right of every page and stays set as you move between them.
 
-| View | Answers | What to look for after scenarios 1–9 |
+| Page | Answers | What to look for after scenarios 1–9 |
 |---|---|---|
-| **Dataset Health** | Which datasets are in trouble right now? | `shipments` **critical**; `orders`, `products`, `signups` and the simulated dataset **degraded**; `customers`, `events`, `reviews`, `clickstream` **healthy** |
-| **Recent Incidents** | What failed, how badly, and why? | Each incident's priority, score and top reason |
-| **Failed Rules** | Which rules fail most often? | `orders` rules at the top after the repeated runs in scenario 3 |
-| **Recurring Failures** | Is it new, or has it been happening? | `orders` rules marked *persistent* |
-| **Metric Trends** | How has one rule's value moved, and what was allowed? | A dataset must be selected (see below) |
-| **Quality History** | Every run of the selected dataset | The same data as `sentinel history` |
+| **Overview** | Is anything wrong right now? | Tiles counting healthy, degraded and critical datasets. Below them every dataset, worst first: `shipments` **critical**; `orders`, `products`, `signups` and the simulated dataset **degraded**; `customers`, `events`, `reviews`, `clickstream` **healthy**. Select a row to open that dataset. |
+| **Incidents** | What failed, and is it new? | *Recent incidents* (filter by priority), *Failing rules* (`orders` rules at the top after scenario 3's repeated runs) and *Recurring* (`orders` rules marked *persistent*). Filter by dataset at the top. |
+| **Dataset** | What is happening to this one dataset? | Its health at a glance, then *Metric trends* (see below), *Runs* (the same data as `sentinel history`, with Run IDs) and its *Incidents*. |
 
 ### How health is decided
 
@@ -72,7 +69,7 @@ Within the selected window, each failing rule is classified as:
 
 ### Metric trends and threshold bands
 
-Select a dataset in the sidebar, then pick a rule. The chart shows:
+Open the **Dataset** page (or select a row on the Overview), choose the dataset, then pick a rule on the *Metric trends* tab. The chart shows:
 
 - **the line**: the value the rule measured on each run;
 - **the shaded band**: the range the threshold allowed on that run. For adaptive strategies the band moves, because it is recomputed from history every run;

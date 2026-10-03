@@ -2373,7 +2373,7 @@ requires-dist = [
 provides-extras = ["snowflake", "bigquery", "mysql", "mongodb", "all-sources"]
 
 [package.metadata.requires-dev]
-dashboard = [{ name = "streamlit", specifier = ">=1.35" }]
+dashboard = [{ name = "streamlit", specifier = ">=1.50" }]
 dev = [
     { name = "mypy", specifier = ">=1.11" },
     { name = "pytest", specifier = ">=8.0" },

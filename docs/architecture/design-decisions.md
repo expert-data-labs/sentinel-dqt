@@ -167,9 +167,10 @@ Each entry follows the same structure: **Decision**, **Why**, **Alternatives con
 
 ### D24. The dashboard is a thin, optional shell
 
-- **Decision.** A single-file Streamlit app that reads only through `ObservabilityQueryService`, installed through its own optional dependency group.
+- **Decision.** A single-file Streamlit app that reads only through `ObservabilityQueryService`, installed through its own optional dependency group. It has three pages (Overview, Incidents, Dataset), each a function in that file, so every page answers one question instead of stacking every view on one screen.
 - **Why.** All logic lives in the tested query layer. CLI users never install a web framework.
 - **Alternatives considered.** A text dashboard in the CLI (no new dependency, but trend charts are far weaker as ASCII).
+- **Revisit when.** The file passes about 500 lines or a page needs its own state: split the pages into modules in a small package.
 
 ### D25. Runs of the same dataset are serialized with an advisory lock
 
